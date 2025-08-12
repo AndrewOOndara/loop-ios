@@ -21,7 +21,7 @@ struct AuthView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Background
+                // Background Sarah Luan
                 Color(.white)
                     .ignoresSafeArea()
                     .foregroundStyle(.white)
