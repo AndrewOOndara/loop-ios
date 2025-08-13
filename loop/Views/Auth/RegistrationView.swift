@@ -106,7 +106,11 @@ struct RegistrationView: View {
             .padding(.horizontal, 40)
         }
         .onAppear { focusedField = .first }
-        .onTapGesture { hideKeyboard() }
+        .onTapGesture {
+            if focusedField != nil {
+                hideKeyboard()
+            }
+        }
     }
 }
 

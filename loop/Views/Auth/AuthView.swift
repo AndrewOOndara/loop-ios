@@ -83,7 +83,11 @@ struct AuthView: View {
                     Text("No account? Sign up")
                         .foregroundColor(.black)
                         .font(.system(size: 16))
-                    Button { onTapSignUp?() } label: {
+                    Button {
+                        // sanity check log:
+                        print("Sign up here tapped")
+                        onTapSignUp?()
+                    } label: {
                         Text("here.")
                             .underline()
                             .foregroundColor(.black)
@@ -95,11 +99,15 @@ struct AuthView: View {
 
                 Spacer(minLength: 40)
             }
-            // one shared padding so field + button have identical width
             .padding(.horizontal, 40)
         }
         .onAppear { isPhoneFocused = true }
-        .onTapGesture { isPhoneFocused = false }
+        .onTapGesture {
+            // Only hide keyboard if phone field is focused
+            if isPhoneFocused {
+                isPhoneFocused = false
+            }
+        }
     }
 
     // MARK: - Actions

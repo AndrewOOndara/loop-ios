@@ -9,28 +9,44 @@
 
 import SwiftUI
 
+enum AuthRoute: Hashable {
+    case register
+}
+
 struct AuthFlowView: View {
-    enum Screen { case signIn, signUp }
-    @State private var screen: Screen = .signIn
+    @State private var path: [AuthRoute] = []
 
     var body: some View {
-        ZStack {
-            switch screen {
-            case .signIn:
-                AuthView(
-                    onSubmit: { phone in /* go to verify */ },
-                    onTapSignUp: { withAnimation(.easeInOut) { screen = .signUp } }
-                )
-                .transition(.move(edge: .trailing).combined(with: .opacity))
-
-            case .signUp:
-                RegistrationView(
-                    onSubmit: { fullName, phone in /* handle register */ },
-                    onTapSignIn: { withAnimation(.easeInOut) { screen = .signIn } }
-                )
-                .transition(.move(edge: .leading).combined(with: .opacity))
+        NavigationStack(path: $path) {
+            AuthView(
+                onSubmit: { phone in
+                    print("Code sent to: \(phone)")
+                    // TODO: Navigate to verify code view
+                },
+                onTapSignUp: {
+                    print("Navigating to registration") // Debug print
+                    path.append(.register)
+                }
+            )
+            .navigationBarBackButtonHidden(true)
+            .navigationDestination(for: AuthRoute.self) { route in
+                switch route {
+                case .register:
+                    RegistrationView(
+                        onSubmit: { name, phone in
+                            print("Register: \(name), \(phone)")
+                            // TODO: Handle registration
+                        },
+                        onTapSignIn: {
+                            print("Navigating back to sign in") // Debug print
+                            if !path.isEmpty {
+                                path.removeLast()
+                            }
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
+                }
             }
         }
     }
 }
-
