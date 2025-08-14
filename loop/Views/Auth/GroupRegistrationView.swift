@@ -8,11 +8,26 @@
 import SwiftUI
 
 struct GroupRegistrationView: View {
+    var onNext: (() -> Void)?
+    var onBack: (() -> Void)?
+
     @State private var code: [String] = Array(repeating: "", count: 4)
     @FocusState private var focusedIndex: Int?
     
     var body: some View {
         VStack(spacing: 40) {
+            // Top bar with optional back button
+            HStack {
+                if onBack != nil {
+                    Button(action: { onBack?() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(.black)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.top, 20)
             
             // Logo at the top
             Text("loop")
@@ -56,7 +71,7 @@ struct GroupRegistrationView: View {
             Button(action: {
                 let enteredCode = code.joined()
                 print("Entered code: \(enteredCode)")
-                // Handle navigation or verification logic here
+                onNext?()
             }) {
                 Text("Next")
                     .font(.system(size: 16, weight: .medium))
@@ -77,5 +92,5 @@ struct GroupRegistrationView: View {
 }
 
 #Preview {
-    GroupRegistrationView()
+    GroupRegistrationView(onNext: {}, onBack: {})
 }

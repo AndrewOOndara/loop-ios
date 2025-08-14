@@ -11,6 +11,9 @@ import SwiftUI
 
 enum AuthRoute: Hashable {
     case register
+    case verify(phone: String)
+    case groupCode
+    case profileSetup
 }
 
 struct AuthFlowView: View {
@@ -21,7 +24,7 @@ struct AuthFlowView: View {
             AuthView(
                 onSubmit: { phone in
                     print("Code sent to: \(phone)")
-                    // TODO: Navigate to verify code view
+                    path.append(.verify(phone: phone))
                 },
                 onTapSignUp: {
                     print("Navigating to registration") // Debug print
@@ -35,7 +38,7 @@ struct AuthFlowView: View {
                     RegistrationView(
                         onSubmit: { name, phone in
                             print("Register: \(name), \(phone)")
-                            // TODO: Handle registration
+                            path.append(.verify(phone: phone))
                         },
                         onTapSignIn: {
                             print("Navigating back to sign in") // Debug print
@@ -44,6 +47,30 @@ struct AuthFlowView: View {
                             }
                         }
                     )
+                    .navigationBarBackButtonHidden(true)
+                case .verify(let phone):
+                    VerificationView(
+                        phone: phone,
+                        onNext: {
+                            path.append(.groupCode)
+                        },
+                        onBack: {
+                            if !path.isEmpty { path.removeLast() }
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
+                case .groupCode:
+                    GroupRegistrationView(
+                        onNext: {
+                            path.append(.profileSetup)
+                        },
+                        onBack: {
+                            if !path.isEmpty { path.removeLast() }
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
+                case .profileSetup:
+                    ProfileSetupView()
                     .navigationBarBackButtonHidden(true)
                 }
             }

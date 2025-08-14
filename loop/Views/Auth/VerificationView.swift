@@ -8,18 +8,30 @@
 import SwiftUI
 
 struct VerificationView: View {
+    // Inputs
+    let phone: String
+    var onNext: (() -> Void)?
+    var onBack: (() -> Void)?
+
+    // Local state
     @State private var code: [String] = Array(repeating: "", count: 4)
     @FocusState private var focusedIndex: Int?
     @State private var retryTime = 59
     @State private var timerActive = true
     
+    private var maskedPhone: String {
+        let digits = phone.filter(\.isNumber)
+        let last4 = digits.suffix(4)
+        return "*** - *** - \(String(last4))"
+    }
+
     var body: some View {
         VStack(spacing: 30) {
             
             // Top bar with back button
             HStack {
                 Button(action: {
-                    // Handle back action
+                    onBack?()
                 }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 20, weight: .medium))
@@ -39,7 +51,7 @@ struct VerificationView: View {
                     .font(.system(size: 18, weight: .medium))
                     .multilineTextAlignment(.center)
                 
-                Text("*** - *** - 6383")
+                Text(maskedPhone)
                     .font(.system(size: 16))
                     .foregroundColor(.black)
             }
@@ -97,6 +109,7 @@ struct VerificationView: View {
             Button(action: {
                 let enteredCode = code.joined()
                 print("Entered code: \(enteredCode)")
+                onNext?()
             }) {
                 Text("Next")
                     .font(.system(size: 16, weight: .medium))
@@ -130,5 +143,5 @@ struct VerificationView: View {
 }
 
 #Preview {
-    VerificationView()
+    VerificationView(phone: "+1 (555) 867-5309", onNext: {}, onBack: {})
 }
