@@ -18,6 +18,7 @@ struct VerificationView: View {
     @FocusState private var focusedIndex: Int?
     @State private var retryTime = 59
     @State private var timerActive = true
+    @State private var countdownTimer: Timer?
     
     private var maskedPhone: String {
         let digits = phone.filter(\.isNumber)
@@ -90,10 +91,8 @@ struct VerificationView: View {
                 Text("Didn’t receive a code?")
                     .foregroundColor(.black)
                 Button(action: {
-                    if retryTime == 0 {
-                        retryTime = 59
-                        timerActive = true
-                    }
+                    retryTime = 59
+                    startTimer()
                 }) {
                     Text("Retry")
                         .foregroundColor(retryTime == 0 ? .blue : .gray)
@@ -131,7 +130,9 @@ struct VerificationView: View {
     
     // Countdown timer logic
     private func startTimer() {
-        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+        countdownTimer?.invalidate()
+        timerActive = true
+        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
             if retryTime > 0 && timerActive {
                 retryTime -= 1
             } else {
