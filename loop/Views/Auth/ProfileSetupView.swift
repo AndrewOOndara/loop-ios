@@ -24,36 +24,34 @@ struct ProfileSetupView: View {
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            BrandColor.white.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 20) {
                     Spacer(minLength: 36)
 
                     // Wordmark
-                    Text("loop")
-                        .font(.custom("Clicker Script", size: 50))
-                        .foregroundColor(.black)
+                    LoopWordmark(fontSize: 50, color: BrandColor.orange)
 
                     // Subtitle
                     Text("Setup your profile!")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(Color(hex: 0x141414))
-                        .padding(.top, 6)
+                        .font(BrandFont.title3)
+                        .foregroundColor(BrandColor.black)
+                        .padding(.top, BrandSpacing.xs)
 
                     // Avatar + camera button
                     ZStack(alignment: .bottomTrailing) {
                         Circle()
-                            .fill(Color.white)
+                            .fill(BrandColor.white)
                             .frame(width: avatarSize, height: avatarSize)
                             .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
                             .overlay(
-                                VStack(spacing: 10) {
+                                VStack(spacing: BrandSpacing.sm) {
                                     Circle()
-                                        .stroke(Color.black, lineWidth: 10)
+                                        .stroke(BrandColor.orange, lineWidth: 10)
                                         .frame(width: 44, height: 44)
                                     ArcShape()
-                                        .stroke(Color.black, lineWidth: 10)
+                                        .stroke(BrandColor.orange, lineWidth: 10)
                                         .frame(width: 90, height: 44)
                                 }
                                 .opacity(0.95)
@@ -64,25 +62,25 @@ struct ProfileSetupView: View {
                         } label: {
                             ZStack {
                                 Circle()
-                                    .fill(Color(hex: 0xE0E0E0))
+                                    .fill(BrandColor.lightBrown)
                                     .frame(width: cameraSize, height: cameraSize)
                                 Image(systemName: "camera.fill")
                                     .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.black)
+                                    .foregroundColor(BrandColor.white)
                             }
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Upload a photo")
                         .offset(x: 6, y: 6)
                     }
-                    .padding(.top, 6)
+                    .padding(.top, BrandSpacing.xs)
 
                     Text("Upload a photo")
-                        .font(.system(size: 13))
-                        .foregroundColor(Color(hex: 0xAAAAAA))
+                        .font(BrandFont.caption1)
+                        .foregroundColor(BrandColor.lightBrown)
 
                     // Fields with underlines
-                    VStack(spacing: 18) {
+                    VStack(spacing: BrandSpacing.lg) {
                         UnderlinedField(
                             title: "Full Name (required)",
                             placeholder: "Enter your full name",
@@ -102,12 +100,12 @@ struct ProfileSetupView: View {
                         .focused($focused, equals: .bio)
                         .submitLabel(.done)
                     }
-                    .padding(.top, 8)
+                    .padding(.top, BrandSpacing.sm)
 
-                    Spacer(minLength: 20)
+                    Spacer(minLength: BrandSpacing.lg)
                 }
-                .padding(.horizontal, 32)
-                .padding(.bottom, 32)
+                .padding(.horizontal, BrandSpacing.xxl)
+                .padding(.bottom, BrandSpacing.xxl)
             }
         }
         // Tap outside to dismiss by clearing focus
@@ -132,19 +130,19 @@ private struct UnderlinedField: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.system(size: 13))
-                .foregroundColor(.black)
+                .foregroundColor(BrandColor.black)
 
             TextField(
                 placeholder,
                 text: $text,
-                prompt: Text(placeholder).foregroundColor(Color(hex: 0xAAAAAA))
+                prompt: Text(placeholder).foregroundColor(BrandColor.lightBrown)
             )
             .textInputAutocapitalization(.words)
             .autocorrectionDisabled(true)
-            .foregroundColor(.black)
+            .foregroundColor(BrandColor.black)
 
             Rectangle()
-                .fill(isFocused ? Color.black : Color(hex: 0xAAAAAA))
+                .fill(isFocused ? BrandColor.orange : BrandColor.lightBrown)
                 .frame(height: 1)
         }
     }
@@ -165,13 +163,4 @@ private struct ArcShape: Shape {
     }
 }
 
-// Hex color helper (if you don't already have one shared)
-private extension Color {
-    init(hex: UInt, alpha: Double = 1.0) {
-        self.init(.sRGB,
-                  red: Double((hex >> 16) & 0xFF)/255.0,
-                  green: Double((hex >> 8) & 0xFF)/255.0,
-                  blue: Double(hex & 0xFF)/255.0,
-                  opacity: alpha)
-    }
-}
+// Color hex helper centralized in AuthStyles

@@ -25,47 +25,64 @@ struct RegistrationView: View {
     private var isValid: Bool {
         !firstName.trimmingCharacters(in: .whitespaces).isEmpty &&
         !lastName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        phone.filter(\.isNumber).count >= 10
+        ValidationHelper.isValidPhone(phone)
     }
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            BrandColor.cream.ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                Spacer(minLength: 60)
+            VStack(spacing: BrandSpacing.lg) {
+                Spacer(minLength: BrandSpacing.huge)
 
                 // Wordmark
                 Text("sign up")
-                    .font(.custom("Clicker Script", size: 64))
-                    .foregroundColor(.black)
-                    .padding(.bottom, 4)
+                    .font(.custom(BrandFont.wordmark, size: 64))
+                    .foregroundColor(BrandColor.orange)
+                    .padding(.bottom, BrandSpacing.xs)
 
                 // First name
                 TextField("First Name", text: $firstName,
-                          prompt: Text("First Name").foregroundColor(Color(hex: 0x8C8C8C)))
+                          prompt: Text("First Name").foregroundColor(BrandColor.lightBrown))
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
                     .focused($focusedField, equals: .first)
-                    .authBubble()
+                    .foregroundColor(BrandColor.black)
+                    .authInput(isValid: firstName.isEmpty || !firstName.trimmingCharacters(in: .whitespaces).isEmpty, 
+                              isFocused: focusedField == .first)
 
                 // Last name
                 TextField("Last Name", text: $lastName,
-                          prompt: Text("Last Name").foregroundColor(Color(hex: 0x8C8C8C)))
+                          prompt: Text("Last Name").foregroundColor(BrandColor.lightBrown))
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
                     .focused($focusedField, equals: .last)
-                    .authBubble()
+                    .foregroundColor(BrandColor.black)
+                    .authInput(isValid: lastName.isEmpty || !lastName.trimmingCharacters(in: .whitespaces).isEmpty, 
+                              isFocused: focusedField == .last)
 
                 // Phone
                 TextField("Phone Number", text: $phone,
-                          prompt: Text("Phone Number").foregroundColor(Color(hex: 0x8C8C8C)))
+                          prompt: Text("Phone Number").foregroundColor(BrandColor.lightBrown))
                     .keyboardType(.phonePad)
                     .textContentType(.telephoneNumber)
                     .focused($focusedField, equals: .phone)
-                    .authBubble()
+                    .foregroundColor(BrandColor.black)
+                    .onChange(of: phone) { oldValue, newValue in
+                        // Only allow digits
+                        let cleaned = ValidationHelper.cleanPhoneInput(newValue)
+                        if cleaned != newValue {
+                            phone = cleaned
+                        }
+                        // Limit to 10 digits
+                        if cleaned.count > 10 {
+                            phone = String(cleaned.prefix(10))
+                        }
+                    }
+                    .authInput(isValid: phone.isEmpty || ValidationHelper.isValidPhone(phone), 
+                              isFocused: focusedField == .phone)
 
-                // Button — same height, radius, and width as bubbles
+                // Submit button
                 Button {
                     hideKeyboard()
                     isLoading = true
@@ -75,35 +92,29 @@ struct RegistrationView: View {
                 } label: {
                     ZStack {
                         if isLoading { ProgressView().tint(.white) }
-                        else { Text("SIGN UP").font(.system(size: 16, weight: .semibold)) }
+                        else { Text("SIGN UP").font(BrandFont.headline) }
                     }
-                    .frame(maxWidth: .infinity, minHeight: AuthUI.bubbleHeight)
                 }
-                .background(Color.black)
-                .foregroundColor(.white)
-                .cornerRadius(AuthUI.bubbleRadius)
+                .primaryButton(isEnabled: isValid && !isLoading)
                 .disabled(!isValid || isLoading)
-                .opacity((isValid && !isLoading) ? 1 : 0.5)
-                .animation(.easeInOut(duration: 0.12), value: isLoading)
-                .animation(.easeInOut(duration: 0.12), value: isValid)
 
                 // Sign-in link
-                HStack(spacing: 4) {
+                HStack(spacing: BrandSpacing.xs) {
                     Text("Already a user? Sign in")
-                        .foregroundColor(.black)
-                        .font(.system(size: 16))
+                        .foregroundColor(BrandColor.black)
+                        .font(BrandFont.body)
                     Button(action: { onTapSignIn?() }) {
                         Text("here.")
                             .underline()
-                            .foregroundColor(.black)
-                            .font(.system(size: 16))
+                            .foregroundColor(BrandColor.orange)
+                            .font(BrandFont.body)
                     }.buttonStyle(.plain)
                 }
-                .padding(.top, 4)
+                .padding(.top, BrandSpacing.xs)
 
-                Spacer(minLength: 40)
+                Spacer(minLength: BrandSpacing.xxxl)
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, BrandSpacing.xxxl)
         }
         .onAppear { focusedField = .first }
         .onTapGesture {
@@ -123,15 +134,7 @@ extension View {
     }
 }
 
-private extension Color {
-    init(hex: UInt, alpha: Double = 1.0) {
-        self.init(.sRGB,
-                  red: Double((hex >> 16) & 0xFF) / 255,
-                  green: Double((hex >> 8) & 0xFF) / 255,
-                  blue: Double(hex & 0xFF) / 255,
-                  opacity: alpha)
-    }
-}
+// Color hex helper centralized in AuthStyles
 
 #Preview {
     RegistrationView(

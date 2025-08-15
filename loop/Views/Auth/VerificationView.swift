@@ -27,104 +27,118 @@ struct VerificationView: View {
     }
 
     var body: some View {
-        VStack(spacing: 30) {
+        ZStack {
+            BrandColor.white.ignoresSafeArea()
             
-            // Top bar with back button
-            HStack {
-                Button(action: {
-                    onBack?()
-                }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(.black)
+            VStack(spacing: 30) {
+                
+                // Top bar with back button
+                HStack {
+                    Button(action: {
+                        onBack?()
+                    }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(BrandColor.black)
+                    }
+                    Spacer()
                 }
+                .padding(.top, 20)
+                
+                // Logo
+                LoopWordmark(fontSize: 36, color: BrandColor.orange)
+                
+                // Verification message
+                VStack(spacing: 8) {
+                    Text("We've sent a verification code to:")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(BrandColor.black)
+                        .multilineTextAlignment(.center)
+                    
+                    Text(maskedPhone)
+                        .font(.system(size: 16))
+                        .foregroundColor(BrandColor.black)
+                }
+                .padding(.top, 10)
+                
+                // Code entry
+                HStack(spacing: BrandSpacing.md) {
+                    ForEach(0..<4, id: \.self) { index in
+                        TextField("", text: $code[index])
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.center)
+                            .focused($focusedIndex, equals: index)
+                            .frame(width: 40, height: 44)
+                            .background(
+                                VStack {
+                                    Spacer()
+                                    Rectangle()
+                                        .frame(height: 2)
+                                        .foregroundColor(BrandColor.black)
+                                }
+                            )
+                            .onChange(of: code[index]) { oldValue, newValue in
+                                // Only allow single digits
+                                let cleaned = newValue.filter(\.isNumber)
+                                if cleaned.count > 1 {
+                                    code[index] = String(cleaned.prefix(1))
+                                } else {
+                                    code[index] = cleaned
+                                }
+                                
+                                // Auto-advance to next field
+                                if !cleaned.isEmpty && index < 3 {
+                                    focusedIndex = index + 1
+                                }
+                            }
+                    }
+                }
+                .padding(.top, BrandSpacing.lg)
+                
+                // Retry link with countdown
+                HStack(spacing: BrandSpacing.xs) {
+                    Text("Didn't receive a code?")
+                        .foregroundColor(BrandColor.lightBrown)
+                        .font(BrandFont.caption1)
+                    Button(action: {
+                        retryTime = 59
+                        startTimer()
+                    }) {
+                        Text("Retry")
+                            .foregroundColor(retryTime == 0 ? BrandColor.orange : BrandColor.lightBrown)
+                            .underline()
+                            .font(BrandFont.caption1)
+                    }
+                    Text("in \(retryTime)s.")
+                        .foregroundColor(BrandColor.lightBrown)
+                        .font(BrandFont.caption1)
+                }
+                .padding(.top, BrandSpacing.sm)
+                
+                // Next button
+                Button(action: {
+                    let enteredCode = code.joined()
+                    print("Entered code: \(enteredCode)")
+                    onNext?()
+                }) {
+                    Text("Next")
+                        .font(BrandFont.headline)
+                        .foregroundColor(.white)
+                        .frame(width: 120, height: BrandUI.buttonHeight)
+                        .background(ValidationHelper.isValidCode(code) ? BrandColor.orange : BrandColor.lightBrown)
+                        .cornerRadius(BrandUI.cornerRadiusExtraLarge)
+                }
+                .disabled(!ValidationHelper.isValidCode(code))
+                .opacity(ValidationHelper.isValidCode(code) ? 1.0 : 0.6)
+                .padding(.top, BrandSpacing.lg)
+                
                 Spacer()
             }
-            .padding(.top, 20)
-            
-            // Logo
-            Text("loop")
-                .font(.custom("Pacifico-Regular", size: 36))
-            
-            // Verification message
-            VStack(spacing: 8) {
-                Text("We’ve sent a verification code to:")
-                    .font(.system(size: 18, weight: .medium))
-                    .multilineTextAlignment(.center)
-                
-                Text(maskedPhone)
-                    .font(.system(size: 16))
-                    .foregroundColor(.black)
+            .padding(.horizontal)
+            .onAppear {
+                focusedIndex = 0
+                startTimer()
             }
-            .padding(.top, 10)
-            
-            // Code entry
-            HStack(spacing: 16) {
-                ForEach(0..<4, id: \.self) { index in
-                    TextField("", text: $code[index])
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.center)
-                        .focused($focusedIndex, equals: index)
-                        .frame(width: 40, height: 44)
-                        .background(
-                            VStack {
-                                Spacer()
-                                Rectangle()
-                                    .frame(height: 2)
-                                    .foregroundColor(.black)
-                            }
-                        )
-                        .onChange(of: code[index]) { newValue in
-                            if newValue.count > 1 {
-                                code[index] = String(newValue.prefix(1))
-                            }
-                            if !newValue.isEmpty && index < 3 {
-                                focusedIndex = index + 1
-                            }
-                        }
-                }
-            }
-            .padding(.top, 20)
-            
-            // Retry link with countdown
-            HStack(spacing: 4) {
-                Text("Didn’t receive a code?")
-                    .foregroundColor(.black)
-                Button(action: {
-                    retryTime = 59
-                    startTimer()
-                }) {
-                    Text("Retry")
-                        .foregroundColor(retryTime == 0 ? .blue : .gray)
-                        .underline()
-                }
-                Text("in \(retryTime)s.")
-                    .foregroundColor(.black)
-            }
-            .font(.system(size: 14))
-            .padding(.top, 10)
-            
-            // Next button
-            Button(action: {
-                let enteredCode = code.joined()
-                print("Entered code: \(enteredCode)")
-                onNext?()
-            }) {
-                Text("Next")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 120, height: 44)
-                    .background(Color.black)
-                    .cornerRadius(8)
-            }
-            .padding(.top, 20)
-            
-            Spacer()
-        }
-        .padding(.horizontal)
-        .onAppear {
-            focusedIndex = 0
-            startTimer()
         }
     }
     

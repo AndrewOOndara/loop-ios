@@ -22,88 +22,90 @@ struct AuthView: View {
     var onTapSignUp: (() -> Void)?
 
     private var isValidPhone: Bool {
-        phone.filter(\.isNumber).count >= 10
+        ValidationHelper.isValidPhone(phone)
     }
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            BrandColor.cream.ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                Spacer(minLength: 60)
+            VStack(spacing: BrandSpacing.lg) {
+                Spacer(minLength: BrandSpacing.huge)
 
                 // Wordmark
-                Text("loop")
-                    .font(.custom("Clicker Script", size: 64))
-                    .foregroundColor(.black)
-                    .padding(.bottom, 4)
+                LoopWordmark(fontSize: 64, color: BrandColor.orange)
+                    .padding(.bottom, BrandSpacing.xs)
 
-                // Phone field — same bubble as Registration
+                // Phone field
                 TextField(
                     "Phone Number",
                     text: $phone,
-                    prompt: Text("Phone Number").foregroundColor(Color(hex: 0x8C8C8C))
+                    prompt: Text("Phone Number").foregroundColor(BrandColor.lightBrown)
                 )
                 .keyboardType(.phonePad)
                 .textContentType(.telephoneNumber)
                 .focused($isPhoneFocused)
-                .authBubble()
+                .foregroundColor(BrandColor.black)
+                .onChange(of: phone) { oldValue, newValue in
+                    // Only allow digits
+                    let cleaned = ValidationHelper.cleanPhoneInput(newValue)
+                    if cleaned != newValue {
+                        phone = cleaned
+                    }
+                    // Limit to 10 digits
+                    if cleaned.count > 10 {
+                        phone = String(cleaned.prefix(10))
+                    }
+                    // Clear error when user starts typing
+                    if errorMessage != nil {
+                        errorMessage = nil
+                    }
+                }
+                .authInput(isValid: phone.isEmpty || isValidPhone, isFocused: isPhoneFocused)
 
-                // Submit — same height/radius/width as bubbles
+                // Submit button
                 Button {
                     isPhoneFocused = false
                     Task { await sendCode() }
                 } label: {
                     ZStack {
                         if isLoading { ProgressView().tint(.white) }
-                        else { Text("SUBMIT").font(.system(size: 16, weight: .semibold)) }
+                        else { Text("SUBMIT").font(BrandFont.headline) }
                     }
-                    .frame(maxWidth: .infinity, minHeight: AuthUI.bubbleHeight)
                 }
-                .background(Color.black)
-                .foregroundStyle(.white)
-                .cornerRadius(AuthUI.bubbleRadius)
+                .primaryButton(isEnabled: isValidPhone && !isLoading)
                 .disabled(!isValidPhone || isLoading)
-                .opacity((isValidPhone && !isLoading) ? 1 : 0.5)
-                .animation(.easeInOut(duration: 0.12), value: isLoading)
-                .animation(.easeInOut(duration: 0.12), value: isValidPhone)
 
-                // Error (if any)
+                // Error message
                 if let errorMessage {
                     Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundColor(.red)
-                        .padding(.top, 4)
-                        .multilineTextAlignment(.center)
-                        .accessibilityLabel("Error: \(errorMessage)")
+                        .errorMessage()
                 }
 
                 // Sign-up line
-                HStack(spacing: 4) {
+                HStack(spacing: BrandSpacing.xs) {
                     Text("No account? Sign up")
-                        .foregroundColor(.black)
-                        .font(.system(size: 16))
+                        .foregroundColor(BrandColor.black)
+                        .font(BrandFont.body)
                     Button {
-                        // sanity check log:
                         print("Sign up here tapped")
                         onTapSignUp?()
                     } label: {
                         Text("here.")
                             .underline()
-                            .foregroundColor(.black)
-                            .font(.system(size: 16))
+                            .foregroundColor(BrandColor.orange)
+                            .font(BrandFont.body)
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.top, 4)
+                .padding(.top, BrandSpacing.xs)
 
-                Spacer(minLength: 40)
+                Spacer(minLength: BrandSpacing.xxxl)
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, BrandSpacing.xxxl)
         }
         .onAppear { isPhoneFocused = true }
         .onTapGesture {
-            // Only hide keyboard if phone field is focused
             if isPhoneFocused {
                 isPhoneFocused = false
             }
@@ -120,9 +122,9 @@ struct AuthView: View {
 
         do {
             try await supabase.auth.signInWithOTP(phone: phone)
-            onSubmit?(phone) // navigate to VerifyCode flow
+            onSubmit?(phone)
         } catch {
-            errorMessage = "Couldn’t send code. Please try again."
+            errorMessage = "Couldn't send code. Please try again."
             #if DEBUG
             print("Supabase OTP error:", error.localizedDescription)
             #endif
@@ -138,13 +140,4 @@ struct AuthView: View {
     )
 }
 
-// MARK: - Tiny color helper 
-private extension Color {
-    init(hex: UInt, alpha: Double = 1.0) {
-        self.init(.sRGB,
-                  red: Double((hex >> 16) & 0xFF) / 255,
-                  green: Double((hex >> 8) & 0xFF) / 255,
-                  blue: Double(hex & 0xFF) / 255,
-                  opacity: alpha)
-    }
-}
+// Color hex helper centralized in AuthStyles

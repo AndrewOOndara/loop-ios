@@ -15,78 +15,90 @@ struct GroupRegistrationView: View {
     @FocusState private var focusedIndex: Int?
     
     var body: some View {
-        VStack(spacing: 40) {
-            // Top bar with optional back button
-            HStack {
-                if onBack != nil {
-                    Button(action: { onBack?() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(.black)
+        ZStack {
+            BrandColor.white.ignoresSafeArea()
+            
+            VStack(spacing: 40) {
+                // Top bar with optional back button
+                HStack {
+                    if onBack != nil {
+                        Button(action: { onBack?() }) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(BrandColor.black)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(.top, 20)
+                
+                // Logo at the top
+                LoopWordmark(fontSize: 36, color: BrandColor.orange)
+                    .padding(.top, 60)
+                
+                // Instruction text
+                Text("Please enter your\n4-digit group invite code here:")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(BrandColor.black)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                
+                // Code entry fields
+                HStack(spacing: BrandSpacing.md) {
+                    ForEach(0..<4, id: \.self) { index in
+                        TextField("", text: $code[index])
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.center)
+                            .focused($focusedIndex, equals: index)
+                            .frame(width: 40, height: 44)
+                            .background(
+                                VStack {
+                                    Spacer()
+                                    Rectangle()
+                                        .frame(height: 2)
+                                        .foregroundColor(BrandColor.black)
+                                }
+                            )
+                            .onChange(of: code[index]) { oldValue, newValue in
+                                // Only allow single digits
+                                let cleaned = newValue.filter(\.isNumber)
+                                if cleaned.count > 1 {
+                                    code[index] = String(cleaned.prefix(1))
+                                } else {
+                                    code[index] = cleaned
+                                }
+                                
+                                // Auto-advance to next field
+                                if !cleaned.isEmpty && index < 3 {
+                                    focusedIndex = index + 1
+                                }
+                            }
                     }
                 }
+                
+                // Next button
+                Button(action: {
+                    let enteredCode = code.joined()
+                    print("Entered code: \(enteredCode)")
+                    onNext?()
+                }) {
+                    Text("Next")
+                        .font(BrandFont.headline)
+                        .foregroundColor(.white)
+                        .frame(width: 120, height: BrandUI.buttonHeight)
+                        .background(ValidationHelper.isValidCode(code) ? BrandColor.orange : BrandColor.lightBrown)
+                        .cornerRadius(BrandUI.cornerRadiusExtraLarge)
+                }
+                .disabled(!ValidationHelper.isValidCode(code))
+                .opacity(ValidationHelper.isValidCode(code) ? 1.0 : 0.6)
+                .padding(.top, BrandSpacing.lg)
+                
                 Spacer()
             }
-            .padding(.top, 20)
-            
-            // Logo at the top
-            Text("loop")
-                .font(.custom("Pacifico-Regular", size: 36)) // Replace with logo font or image
-                .padding(.top, 60)
-            
-            // Instruction text
-            Text("Please enter your\n4-digit group invite code here:")
-                .font(.system(size: 18, weight: .medium))
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            
-            // Code entry fields
-            HStack(spacing: 16) {
-                ForEach(0..<4, id: \.self) { index in
-                    TextField("", text: $code[index])
-                        .keyboardType(.numberPad)
-                        .multilineTextAlignment(.center)
-                        .focused($focusedIndex, equals: index)
-                        .frame(width: 40, height: 44)
-                        .background(
-                            VStack {
-                                Spacer()
-                                Rectangle()
-                                    .frame(height: 2)
-                                    .foregroundColor(.black)
-                            }
-                        )
-                        .onChange(of: code[index]) { newValue in
-                            if newValue.count > 1 {
-                                code[index] = String(newValue.prefix(1))
-                            }
-                            if !newValue.isEmpty && index < 3 {
-                                focusedIndex = index + 1
-                            }
-                        }
-                }
+            .padding()
+            .onAppear {
+                focusedIndex = 0
             }
-            
-            // Next button
-            Button(action: {
-                let enteredCode = code.joined()
-                print("Entered code: \(enteredCode)")
-                onNext?()
-            }) {
-                Text("Next")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 120, height: 44)
-                    .background(Color.black)
-                    .cornerRadius(8)
-            }
-            .padding(.top, 20)
-            
-            Spacer()
-        }
-        .padding()
-        .onAppear {
-            focusedIndex = 0
         }
     }
 }

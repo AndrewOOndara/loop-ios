@@ -339,7 +339,7 @@ struct ProfileSetupPage: View {
                             .frame(width: 124, height: 124)
                     }
                 }
-                .onChange(of: selectedItem) { newItem in
+                .onChange(of: selectedItem) { oldItem, newItem in
                     Task {
                         if let data = try? await newItem?.loadTransferable(type: Data.self) {
                             if let uiImage = UIImage(data: data) {
