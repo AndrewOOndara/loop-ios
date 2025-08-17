@@ -14,7 +14,7 @@ struct VerificationView: View {
     var onBack: (() -> Void)?
 
     // Local state
-    @State private var code: [String] = Array(repeating: "", count: 4)
+    @State private var code: [String] = Array(repeating: "", count: 6)
     @FocusState private var focusedIndex: Int?
     @State private var retryTime = 59
     @State private var timerActive = true
@@ -63,7 +63,7 @@ struct VerificationView: View {
                 
                 // Code entry
                 HStack(spacing: BrandSpacing.md) {
-                    ForEach(0..<4, id: \.self) { index in
+                    ForEach(0..<6, id: \.self) { index in
                         TextField("", text: $code[index])
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.center)
@@ -87,7 +87,7 @@ struct VerificationView: View {
                                 }
                                 
                                 // Auto-advance to next field
-                                if !cleaned.isEmpty && index < 3 {
+                                if !cleaned.isEmpty && index < 5 {
                                     focusedIndex = index + 1
                                 }
                             }
@@ -101,14 +101,17 @@ struct VerificationView: View {
                         .foregroundColor(BrandColor.lightBrown)
                         .font(BrandFont.caption1)
                     Button(action: {
-                        retryTime = 59
-                        startTimer()
+                        Task {
+                            await resendCode()
+                        }
                     }) {
                         Text("Retry")
                             .foregroundColor(retryTime == 0 ? BrandColor.orange : BrandColor.lightBrown)
                             .underline()
                             .font(BrandFont.caption1)
                     }
+                    .disabled(retryTime > 0)
+                    
                     Text("in \(retryTime)s.")
                         .foregroundColor(BrandColor.lightBrown)
                         .font(BrandFont.caption1)
@@ -117,9 +120,9 @@ struct VerificationView: View {
                 
                 // Next button
                 Button(action: {
-                    let enteredCode = code.joined()
-                    print("Entered code: \(enteredCode)")
-                    onNext?()
+                    Task{
+                        await verifyCode()
+                    }
                 }) {
                     Text("Next")
                         .font(BrandFont.headline)
@@ -141,6 +144,48 @@ struct VerificationView: View {
             }
         }
     }
+
+    @MainActor
+    private func verifyCode() async {
+        let enteredCode = code.joined()
+        guard !enteredCode.isEmpty else { return }
+        
+        do {
+            // Supabase call to verify OTP
+            let session = try await supabase.auth.verifyOTP(
+                phone: phone,
+                token: enteredCode,
+                type: .sms
+            )
+            print("Verified! Session:", session)
+            
+            // Clear the code fields
+            code = Array(repeating: "", count: 6)
+            focusedIndex = 0
+            
+            onNext?()
+        } catch {
+            print("OTP verification failed:", error.localizedDescription)
+            // You can show a user-facing error here
+        }
+    }
+    @MainActor
+    private func resendCode() async {
+        guard retryTime == 0 else { return } // only allow if countdown finished
+        do {
+            try await supabase.auth.signInWithOTP(phone: phone)
+            // Clear the entered code
+            code = Array(repeating: "", count: 6)
+            focusedIndex = 0 // focus first field again
+            
+            retryTime = 59
+            startTimer()
+        } catch {
+            print("Error resending OTP:", error.localizedDescription)
+            // Optionally show an error message to the user
+        }
+    }
+
     
     // Countdown timer logic
     private func startTimer() {
@@ -156,6 +201,7 @@ struct VerificationView: View {
         }
     }
 }
+
 
 #Preview {
     VerificationView(phone: "+1 (555) 867-5309", onNext: {}, onBack: {})

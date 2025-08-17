@@ -124,10 +124,10 @@ struct ValidationHelper {
         return "(\(areaCode)) \(prefix)-\(lineNumber)"
     }
     
-    // Code validation (4 digits only)
+    // Code validation (6 digits only)
     static func isValidCode(_ code: [String]) -> Bool {
         return code.allSatisfy { $0.count == 1 && $0.first?.isNumber == true } &&
-               code.joined().count == 4
+               code.joined().count == 6
     }
     
     // Clean phone input (remove non-digits)

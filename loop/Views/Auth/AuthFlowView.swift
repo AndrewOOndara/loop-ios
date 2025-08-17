@@ -52,7 +52,7 @@ struct AuthFlowView: View {
                     VerificationView(
                         phone: phone,
                         onNext: {
-                            path.append(.groupCode)
+                            path.append(.profileSetup)
                         },
                         onBack: {
                             if !path.isEmpty { path.removeLast() }
@@ -77,3 +77,37 @@ struct AuthFlowView: View {
         }
     }
 }
+
+//onNext: {
+//    Task {
+//        do {
+//            guard let userId = supabase.auth.currentUser?.id else {
+//                print("No authenticated user found.")
+//                return
+//            }
+//            // Check the current user's profile
+//            let profile: [Profile] = try await supabase.from("profiles")
+//                .select()
+//                .eq("id", value: userId) // Filter by the user's ID
+//                .limit(1) // Limit to one result as we expect at most one profile per user
+//                .execute()
+//                .value
+//            
+//            if !profile.isEmpty {
+//                print("Go to Home")
+//            } else {
+//                print("Go to Registration")
+//                path.append(.register)
+//            }
+//        } catch {
+//            print("Error checking username:", error.localizedDescription)
+//            // Fallback → go to RegistrationView
+//            path.append(.register)
+//        }
+//    }
+//},
+//onBack: {
+//    if !path.isEmpty { path.removeLast() }
+//}
+//)
+//.navigationBarBackButtonHidden(true)

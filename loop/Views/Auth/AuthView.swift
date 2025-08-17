@@ -20,9 +20,10 @@ struct AuthView: View {
     // Hooks to wire later (navigation, analytics, etc.)
     var onSubmit: ((String) -> Void)?
     var onTapSignUp: (() -> Void)?
+    
 
     private var isValidPhone: Bool {
-        ValidationHelper.isValidPhone(phone)
+        formattedPhone != nil
     }
 
     var body: some View {
@@ -114,15 +115,31 @@ struct AuthView: View {
 
     // MARK: - Actions
     @MainActor
+    private var formattedPhone: String? {
+        let digits = phone.filter(\.isNumber)
+        // ✅ US-only case: enforce 10 digits
+        if digits.count == 10 {
+            return "+1" + digits
+        }
+        // If the user already included +countrycode
+        if phone.hasPrefix("+") {
+            return phone
+        }
+        return nil
+    }
+
     private func sendCode() async {
-        guard isValidPhone, !isLoading else { return }
+        guard let formattedPhone, !isLoading else {
+            errorMessage = "Please enter a valid phone number."
+            return
+        }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
 
         do {
-            try await supabase.auth.signInWithOTP(phone: phone)
-            onSubmit?(phone)
+            try await supabase.auth.signInWithOTP(phone: formattedPhone)
+            onSubmit?(formattedPhone)
         } catch {
             errorMessage = "Couldn't send code. Please try again."
             #if DEBUG
