@@ -1,180 +1,274 @@
+//
+//  ProfileSetupView.swift
+//  loop
+//
+//  Created by Sarah Luan on 8/12/25.
+//
+//  Profile setup screen for new users
+//
+
 import SwiftUI
+import PhotosUI
 
 struct ProfileSetupView: View {
-    // Step tracking: 0 = Name, 1 = Username & Bio, 2 = Avatar
-    @State private var step: Int = 0
+    var onComplete: (() -> Void)?
     
-    // Form state
     @State private var firstName: String = ""
     @State private var lastName: String = ""
-    @State private var username: String = ""
     @State private var bio: String = ""
+    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var profileImage: UIImage? = nil
+    @State private var isLoading: Bool = false
+    @State private var errorMessage: String?
     
-    // Focus state
     @FocusState private var focusedField: Field?
-    private enum Field { case firstName, lastName, username, bio }
     
-    // Avatar sizes
-    private let avatarSize: CGFloat = 148
-    private let cameraSize: CGFloat = 42
+    enum Field {
+        case firstName, lastName, bio
+    }
     
+    private var isValid: Bool {
+        !firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     var body: some View {
-        ZStack {
-            BrandColor.white.ignoresSafeArea()
+                ZStack {
+            BrandColor.cream.ignoresSafeArea()
             
-            VStack {
-                LoopWordmark(fontSize: 50, color: BrandColor.orange)
-                    .padding(.top, 36)
-                
-                Spacer(minLength: 20)
-                
-                // Step content
-                Group {
-                    switch step {
-                    case 0: nameStep
-                    case 1: usernameBioStep
-                    case 2: avatarStep
-                    default: EmptyView()
-                    }
-                }
-                
-                Spacer()
-                
-                // Navigation buttons
-                HStack {
-                    if step > 0 {
-                        Button("Back") { step -= 1 }
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Wordmark at the very top
+                    LoopWordmark(fontSize: 64, color: BrandColor.orange)
+                        .padding(.bottom, BrandSpacing.md)
+                    
+                    // Main content centered
+                    VStack(spacing: BrandSpacing.lg) {
+                        // Title
+                        Text("Set up your profile!")
+                            .font(BrandFont.headline)
+                            .foregroundColor(BrandColor.black)
+                            .padding(.bottom, BrandSpacing.md)
+                    
+                    // Profile Picture Section
+                    VStack(spacing: BrandSpacing.sm) {
+                        ZStack {
+                            // Profile image or placeholder
+                            if let profileImage {
+                                Image(uiImage: profileImage)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 120, height: 120)
+                                    .clipShape(Circle())
+                                                        } else {
+                                Circle()
+                                    .fill(BrandColor.white)
+                                    .frame(width: 120, height: 120)
+                                    .overlay(
+                                        Image(systemName: "person.fill")
+                                            .font(.system(size: 40))
+                                            .foregroundColor(BrandColor.lightBrown)
+                                    )
+                            }
+                            
+                            // Camera button
+                            PhotosPicker(
+                                selection: $selectedItem,
+                                matching: .images,
+                                photoLibrary: .shared()
+                            ) {
+                                ZStack {
+                                    Circle()
+                                        .fill(BrandColor.orange)
+                                        .frame(width: 36, height: 36)
+                                    
+                                    Image(systemName: "camera.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .offset(x: 40, y: 40)
+                        }
+                        
+                        Text("Add a profile picture")
+                            .font(BrandFont.caption1)
                             .foregroundColor(BrandColor.lightBrown)
-                            .padding(.horizontal)
                     }
+                    .padding(.bottom, BrandSpacing.lg)
                     
-                    Spacer()
-                    
-                    Button(step == 2 ? "Finish" : "Next") {
-                        if step < 2 { step += 1 }
-                        else { submitProfile() }
-                    }
-                    .disabled(!isStepValid)
-                    .foregroundColor(.white)
-                    .frame(width: 120, height: BrandUI.buttonHeight)
-                    .background(isStepValid ? BrandColor.orange : BrandColor.lightBrown)
-                    .cornerRadius(BrandUI.cornerRadiusExtraLarge)
-                    .padding(.horizontal)
-                }
-                .padding(.bottom, BrandSpacing.xxl)
-            }
-            .padding(.horizontal, BrandSpacing.xxl)
-        }
-    }
-    
-    // MARK: - Steps
-    
-    private var nameStep: some View {
-        VStack(spacing: BrandSpacing.lg) {
-            UnderlinedField(title: "First Name (required)",
-                            placeholder: "Enter your first name",
+                    // Form Fields
+                    VStack(spacing: BrandSpacing.md) {
+                        // First Name
+                        UnderlinedField(
+                            title: "First Name",
                             text: $firstName,
-                            isFocused: focusedField == .firstName)
-            .focused($focusedField, equals: .firstName)
-            .onAppear { focusedField = .firstName }
-            
-            UnderlinedField(title: "Last Name (required)",
-                            placeholder: "Enter your last name",
+                            isRequired: true
+                        )
+                        .focused($focusedField, equals: .firstName)
+                        .textContentType(.givenName)
+                        .autocapitalization(.words)
+                        
+                        // Last Name
+                        UnderlinedField(
+                            title: "Last Name", 
                             text: $lastName,
-                            isFocused: focusedField == .lastName)
-            .focused($focusedField, equals: .lastName)
-            .onAppear { focusedField = .lastName }
-        }
-    }
-    
-    private var usernameBioStep: some View {
-        VStack(spacing: BrandSpacing.lg) {
-            UnderlinedField(title: "@username",
-                            placeholder: "Enter your username",
-                            text: $username,
-                            isFocused: focusedField == .username)
-            .focused($focusedField, equals: .username)
-            .onAppear { focusedField = .username }
-            
-            UnderlinedField(title: "Bio (optional)",
-                            placeholder: "Add a short bio",
-                            text: $bio,
-                            isFocused: focusedField == .bio)
-            .focused($focusedField, equals: .bio)
-            .onAppear { focusedField = .bio }
-        }
-    }
-    
-    private var avatarStep: some View {
-        VStack(spacing: BrandSpacing.sm) {
-            ZStack(alignment: .bottomTrailing) {
-                Circle()
-                    .fill(BrandColor.white)
-                    .frame(width: avatarSize, height: avatarSize)
-                    .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-                
-                Button {
+                            isRequired: true
+                        )
+                        .focused($focusedField, equals: .lastName)
+                        .textContentType(.familyName)
+                        .autocapitalization(.words)
+                        
+                        // Bio (optional)
+                        VStack(alignment: .leading, spacing: BrandSpacing.xs) {
+                            HStack {
+                                Text("Bio (optional)")
+                                    .font(BrandFont.caption1)
+                                    .foregroundColor(BrandColor.lightBrown)
+                                
+                                Spacer()
+                                
+                                Text("\(bio.count)/100")
+                                    .font(BrandFont.caption2)
+                                    .foregroundColor(bio.count > 100 ? BrandColor.error : BrandColor.lightBrown)
+                            }
+                            
+                            TextField("", text: $bio, axis: .vertical)
+                                .focused($focusedField, equals: .bio)
+                                .foregroundColor(BrandColor.black)
+                                .font(BrandFont.body)
+                                .padding(.vertical, BrandSpacing.sm)
+                                .onChange(of: bio) { oldValue, newValue in
+                                    if newValue.count > 100 {
+                                        bio = String(newValue.prefix(100))
+                                    }
+                                }
+                            
+                            Rectangle()
+                                .fill(focusedField == .bio ? BrandColor.orange : BrandColor.lightBrown)
+                                .frame(height: 1)
+                                .animation(.easeInOut(duration: 0.2), value: focusedField == .bio)
+                        }
+                    }
+                    .padding(.bottom, BrandSpacing.xl)
                     
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(BrandColor.lightBrown)
-                            .frame(width: cameraSize, height: cameraSize)
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(BrandColor.white)
+                    // Error message
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .errorMessage()
+                    }
+                    
+                    // Complete button
+                    Button {
+                        Task { await completeSetup() }
+                    } label: {
+                        ZStack {
+                            if isLoading {
+                                ProgressView().tint(.white)
+                            } else {
+                                Text("COMPLETE SETUP")
+                                    .font(BrandFont.headline)
+                            }
+                        }
+                    }
+                    .primaryButton(isEnabled: isValid && !isLoading)
+                    .disabled(!isValid || isLoading)
+                    }
+                    .padding(.horizontal, BrandSpacing.xxxl)
+                }
+            }
+        }
+        .onChange(of: selectedItem) { oldValue, newValue in
+            Task {
+                if let data = try? await newValue?.loadTransferable(type: Data.self) {
+                    if let uiImage = UIImage(data: data) {
+                        profileImage = uiImage
                     }
                 }
-                .buttonStyle(.plain)
             }
+        }
+        .onTapGesture {
+            focusedField = nil
+        }
+    }
+    
+    // MARK: - Actions
+    private func completeSetup() async {
+        guard isValid, !isLoading else { return }
+        
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        
+        // Here you would typically save the profile data to your backend
+        // For now, we'll just simulate a successful setup
+        do {
+            // Simulate API call
+            try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
             
-            Text("Upload a photo")
-                .font(BrandFont.caption1)
-                .foregroundColor(BrandColor.lightBrown)
+            // In a real app, you'd save to Supabase:
+            // let profileData = [
+            //     "first_name": firstName,
+            //     "last_name": lastName,
+            //     "bio": bio.isEmpty ? nil : bio,
+            //     "avatar_url": profileImageUrl
+            // ]
+            // try await supabase.from("profiles").insert(profileData).execute()
+            
+            onComplete?()
+        } catch {
+            errorMessage = "Failed to set up profile. Please try again."
+            #if DEBUG
+            print("Profile setup error:", error.localizedDescription)
+            #endif
         }
-    }
-    
-    // MARK: - Helpers
-    
-    private var isStepValid: Bool {
-        switch step {
-        case 0: return !firstName.isEmpty && !lastName.isEmpty
-        case 1: return !username.isEmpty
-        default: return true
-        }
-    }
-    
-    private func submitProfile() {
-        // Save profile data to Supabase here
-        print("Profile submitted:", firstName, lastName, username, bio)
     }
 }
 
-// MARK: - Underlined Field (kept from your styling)
-private struct UnderlinedField: View {
+// MARK: - UnderlinedField Component
+struct UnderlinedField: View {
     let title: String
-    let placeholder: String
     @Binding var text: String
-    var isFocused: Bool
+    let isRequired: Bool
     
+    @FocusState private var isFocused: Bool
+    
+    init(title: String, text: Binding<String>, isRequired: Bool = false) {
+        self.title = title
+        self._text = text
+        self.isRequired = isRequired
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: BrandSpacing.xs) {
+            HStack {
             Text(title)
-                .font(.system(size: 13))
+                    .font(BrandFont.caption1)
+                    .foregroundColor(BrandColor.lightBrown)
+                
+                if isRequired {
+                    Text("*")
+                        .font(BrandFont.caption1)
+                        .foregroundColor(BrandColor.orange)
+                }
+            }
+            
+            TextField("", text: $text)
+                .focused($isFocused)
                 .foregroundColor(BrandColor.black)
-            
-            TextField(
-                placeholder,
-                text: $text,
-                prompt: Text(placeholder).foregroundColor(BrandColor.lightBrown)
-            )
-            .textInputAutocapitalization(.words)
-            .autocorrectionDisabled(true)
-            .foregroundColor(BrandColor.black)
-            
+                .font(BrandFont.body)
+                .padding(.vertical, BrandSpacing.sm)
+
             Rectangle()
                 .fill(isFocused ? BrandColor.orange : BrandColor.lightBrown)
                 .frame(height: 1)
+                .animation(.easeInOut(duration: 0.2), value: isFocused)
         }
     }
+}
+
+// MARK: - Preview
+#Preview {
+    ProfileSetupView(
+        onComplete: { print("Profile setup completed") }
+    )
 }

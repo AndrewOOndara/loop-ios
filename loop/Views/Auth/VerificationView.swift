@@ -2,207 +2,229 @@
 //  VerificationView.swift
 //  loop
 //
-//  Created by Andrew Ondara on 8/12/25.
+//  Created by Sarah Luan on 8/12/25.
+//
+//  Simple OTP verification screen
 //
 
 import SwiftUI
 
 struct VerificationView: View {
-    // Inputs
     let phone: String
-    var onNext: (() -> Void)?
+    var onSuccess: (() -> Void)?
     var onBack: (() -> Void)?
-
-    // Local state
-    @State private var code: [String] = Array(repeating: "", count: 6)
-    @FocusState private var focusedIndex: Int?
-    @State private var retryTime = 59
-    @State private var timerActive = true
-    @State private var countdownTimer: Timer?
     
-    private var maskedPhone: String {
-        let digits = phone.filter(\.isNumber)
-        let last4 = digits.suffix(4)
-        return "*** - *** - \(String(last4))"
+    @State private var code: [String] = Array(repeating: "", count: 6)
+    @State private var isLoading: Bool = false
+    @State private var errorMessage: String?
+    @State private var countdown: Int = 15
+    @State private var canResend: Bool = false
+    @FocusState private var focusedField: Int?
+    
+    private var isValidCode: Bool {
+        ValidationHelper.isValidCode(code)
     }
-
+    
     var body: some View {
         ZStack {
-            BrandColor.white.ignoresSafeArea()
+            BrandColor.cream.ignoresSafeArea()
             
-            VStack(spacing: 30) {
+            VStack(spacing: 0) {
+                // Wordmark at the very top
+                LoopWordmark(fontSize: 64, color: BrandColor.orange)
+                    .padding(.bottom, BrandSpacing.huge)
+                    .padding(.bottom, BrandSpacing.md)
                 
-                // Top bar with back button
-                HStack {
-                    Button(action: {
-                        onBack?()
-                    }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(BrandColor.black)
-                    }
-                    Spacer()
-                }
-                .padding(.top, 20)
+                // Main content centered
+                VStack(spacing: BrandSpacing.lg) {
                 
-                // Logo
-                LoopWordmark(fontSize: 36, color: BrandColor.orange)
-                
-                // Verification message
-                VStack(spacing: 8) {
-                    Text("We've sent a verification code to:")
-                        .font(.system(size: 18, weight: .medium))
+                // Instruction text
+                VStack(spacing: BrandSpacing.sm) {
+                    Text("Enter the code sent to:")
+                        .font(BrandFont.headline)
                         .foregroundColor(BrandColor.black)
-                        .multilineTextAlignment(.center)
                     
-                    Text(maskedPhone)
-                        .font(.system(size: 16))
-                        .foregroundColor(BrandColor.black)
+                    Text(phone)
+                        .font(BrandFont.body)
+                        .foregroundColor(BrandColor.lightBrown)
                 }
-                .padding(.top, 10)
+                .padding(.bottom, BrandSpacing.lg)
                 
-                // Code entry
-                HStack(spacing: BrandSpacing.md) {
+                // Code input fields
+                HStack(spacing: BrandSpacing.sm) {
                     ForEach(0..<6, id: \.self) { index in
                         TextField("", text: $code[index])
-                            .keyboardType(.numberPad)
+                            .frame(width: 50, height: 50)
                             .multilineTextAlignment(.center)
-                            .focused($focusedIndex, equals: index)
-                            .frame(width: 40, height: 44)
-                            .background(
-                                VStack {
-                                    Spacer()
-                                    Rectangle()
-                                        .frame(height: 2)
-                                        .foregroundColor(BrandColor.black)
-                                }
+                            .keyboardType(.numberPad)
+                            .focused($focusedField, equals: index)
+                            .foregroundColor(BrandColor.black)
+                            .background(Color.clear)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: BrandUI.cornerRadiusLarge)
+                                    .stroke(focusedField == index ? BrandColor.orange : BrandColor.lightBrown, lineWidth: 2)
                             )
                             .onChange(of: code[index]) { oldValue, newValue in
                                 // Only allow single digits
-                                let cleaned = newValue.filter(\.isNumber)
-                                if cleaned.count > 1 {
-                                    code[index] = String(cleaned.prefix(1))
+                                let filtered = newValue.filter(\.isNumber)
+                                if filtered.count > 1 {
+                                    code[index] = String(filtered.prefix(1))
                                 } else {
-                                    code[index] = cleaned
+                                    code[index] = filtered
                                 }
                                 
-                                // Auto-advance to next field
-                                if !cleaned.isEmpty && index < 5 {
-                                    focusedIndex = index + 1
+                                // Auto-advance focus
+                                if !code[index].isEmpty && index < 5 {
+                                    focusedField = index + 1
+                                }
+                                
+                                // Clear error when user types
+                                if errorMessage != nil {
+                                    errorMessage = nil
                                 }
                             }
                     }
                 }
-                .padding(.top, BrandSpacing.lg)
+                .padding(.bottom, BrandSpacing.lg)
                 
-                // Retry link with countdown
-                HStack(spacing: BrandSpacing.xs) {
+                // Error message
+                if let errorMessage {
+                    Text(errorMessage)
+                        .errorMessage()
+                }
+                
+                // Retry section
+                HStack(spacing: 4) {
                     Text("Didn't receive a code?")
                         .foregroundColor(BrandColor.lightBrown)
-                        .font(BrandFont.caption1)
-                    Button(action: {
-                        Task {
-                            await resendCode()
-                        }
-                    }) {
-                        Text("Retry")
-                            .foregroundColor(retryTime == 0 ? BrandColor.orange : BrandColor.lightBrown)
-                            .underline()
-                            .font(BrandFont.caption1)
-                    }
-                    .disabled(retryTime > 0)
+                        .font(BrandFont.body)
                     
-                    Text("in \(retryTime)s.")
-                        .foregroundColor(BrandColor.lightBrown)
-                        .font(BrandFont.caption1)
+                    if canResend {
+                        Button {
+                            Task { await resendCode() }
+                        } label: {
+                            Text("Retry")
+                                .foregroundColor(BrandColor.orange)
+                                .font(BrandFont.body)
+                                .underline()
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text("Retry in \(countdown)s")
+                            .foregroundColor(BrandColor.lightBrown)
+                            .font(BrandFont.body)
+                    }
                 }
-                .padding(.top, BrandSpacing.sm)
+                .padding(.bottom, BrandSpacing.lg)
                 
                 // Next button
-                Button(action: {
-                    Task{
-                        await verifyCode()
+                Button {
+                    Task { await verifyCode() }
+                } label: {
+                    ZStack {
+                        if isLoading {
+                            ProgressView().tint(.white)
+                        } else {
+                            Text("NEXT")
+                                .font(BrandFont.headline)
+                        }
                     }
-                }) {
-                    Text("Next")
-                        .font(BrandFont.headline)
-                        .foregroundColor(.white)
-                        .frame(width: 120, height: BrandUI.buttonHeight)
-                        .background(ValidationHelper.isValidCode(code) ? BrandColor.orange : BrandColor.lightBrown)
-                        .cornerRadius(BrandUI.cornerRadiusExtraLarge)
                 }
-                .disabled(!ValidationHelper.isValidCode(code))
-                .opacity(ValidationHelper.isValidCode(code) ? 1.0 : 0.6)
-                .padding(.top, BrandSpacing.lg)
+                .primaryButton(isEnabled: isValidCode && !isLoading)
+                .disabled(!isValidCode || isLoading)
+                }
+                .padding(.horizontal, BrandSpacing.xxxl)
                 
                 Spacer()
             }
-            .padding(.horizontal)
-            .onAppear {
-                focusedIndex = 0
-                startTimer()
+        }
+        .onAppear {
+            focusedField = 0
+            startCountdown()
+        }
+        .onTapGesture {
+            focusedField = nil
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Back") {
+                    onBack?()
+                }
+                .foregroundColor(BrandColor.orange)
             }
         }
     }
-
-    @MainActor
+    
+    // MARK: - Actions
+    private func startCountdown() {
+        canResend = false
+        countdown = 15
+        
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+            if countdown > 0 {
+                countdown -= 1
+            } else {
+                canResend = true
+                timer.invalidate()
+            }
+        }
+    }
+    
+    private func resendCode() async {
+        do {
+            // Send a new OTP code
+            try await supabase.auth.signInWithOTP(phone: phone)
+            
+            // Clear any existing error and restart countdown
+            errorMessage = nil
+            startCountdown()
+            
+            // Clear the code fields for new entry
+            code = Array(repeating: "", count: 6)
+            focusedField = 0
+            
+            #if DEBUG
+            print("New code sent to: \(phone)")
+            #endif
+        } catch {
+            errorMessage = "Failed to send new code. Please try again."
+            #if DEBUG
+            print("Resend OTP error:", error.localizedDescription)
+            #endif
+        }
+    }
+    
     private func verifyCode() async {
-        let enteredCode = code.joined()
-        guard !enteredCode.isEmpty else { return }
+        guard isValidCode, !isLoading else { return }
+        
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        
+        let codeString = code.joined()
         
         do {
-            // Supabase call to verify OTP
-            let session = try await supabase.auth.verifyOTP(
-                phone: phone,
-                token: enteredCode,
-                type: .sms
-            )
-            print("Verified! Session:", session)
-            
-            // Clear the code fields
-            code = Array(repeating: "", count: 6)
-            focusedIndex = 0
-            
-            onNext?()
+            // Verify OTP with Supabase
+            try await supabase.auth.verifyOTP(phone: phone, token: codeString, type: .sms)
+            onSuccess?()
         } catch {
-            print("OTP verification failed:", error.localizedDescription)
-            // You can show a user-facing error here
-        }
-    }
-    @MainActor
-    private func resendCode() async {
-        guard retryTime == 0 else { return } // only allow if countdown finished
-        do {
-            try await supabase.auth.signInWithOTP(phone: phone)
-            // Clear the entered code
+            errorMessage = "Invalid code. Please try again."
+            // Clear the code for retry
             code = Array(repeating: "", count: 6)
-            focusedIndex = 0 // focus first field again
+            focusedField = 0
             
-            retryTime = 59
-            startTimer()
-        } catch {
-            print("Error resending OTP:", error.localizedDescription)
-            // Optionally show an error message to the user
-        }
-    }
-
-    
-    // Countdown timer logic
-    private func startTimer() {
-        countdownTimer?.invalidate()
-        timerActive = true
-        countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
-            if retryTime > 0 && timerActive {
-                retryTime -= 1
-            } else {
-                timer.invalidate()
-                timerActive = false
-            }
+            #if DEBUG
+            print("OTP verification error:", error.localizedDescription)
+            #endif
         }
     }
 }
 
-
+// MARK: - Preview
 #Preview {
-    VerificationView(phone: "+1 (555) 867-5309", onNext: {}, onBack: {})
+    VerificationView(
+        phone: "+1234567890",
+        onSuccess: { print("Verification successful") },
+        onBack: { print("Back tapped") }
+    )
 }

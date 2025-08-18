@@ -17,9 +17,8 @@ struct AuthView: View {
     @State private var errorMessage: String?
     @FocusState private var isPhoneFocused: Bool
 
-    // Hooks to wire later (navigation, analytics, etc.)
+    // Hook for handling successful phone submission
     var onSubmit: ((String) -> Void)?
-    var onTapSignUp: (() -> Void)?
     
 
     private var isValidPhone: Bool {
@@ -34,7 +33,7 @@ struct AuthView: View {
                 Spacer(minLength: BrandSpacing.huge)
 
                 // Wordmark
-                LoopWordmark(fontSize: 64, color: BrandColor.orange)
+                LoopWordmark(fontSize: 90, color: BrandColor.orange)
                     .padding(.bottom, BrandSpacing.xs)
 
                 // Phone field
@@ -83,23 +82,7 @@ struct AuthView: View {
                         .errorMessage()
                 }
 
-                // Sign-up line
-                HStack(spacing: BrandSpacing.xs) {
-                    Text("No account? Sign up")
-                        .foregroundColor(BrandColor.black)
-                        .font(BrandFont.body)
-                    Button {
-                        print("Sign up here tapped")
-                        onTapSignUp?()
-                    } label: {
-                        Text("here.")
-                            .underline()
-                            .foregroundColor(BrandColor.orange)
-                            .font(BrandFont.body)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.top, BrandSpacing.xs)
+
 
                 Spacer(minLength: BrandSpacing.xxxl)
             }
@@ -152,8 +135,7 @@ struct AuthView: View {
 // MARK: - Preview
 #Preview {
     AuthView(
-        onSubmit: { print("Code sent to:", $0) },
-        onTapSignUp: { print("Sign up tapped") }
+        onSubmit: { print("Code sent to:", $0) }
     )
 }
 
