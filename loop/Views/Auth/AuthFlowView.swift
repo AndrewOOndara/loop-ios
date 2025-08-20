@@ -12,6 +12,7 @@ import SwiftUI
 enum AuthRoute: Hashable {
     case verify(phone: String)
     case profileSetup
+    case home
 }
 
 struct AuthFlowView: View {
@@ -41,11 +42,13 @@ struct AuthFlowView: View {
                 case .profileSetup:
                     ProfileSetupView(
                         onComplete: {
-                            // Handle successful profile setup - navigate to main app
-                            print("Profile setup completed! Navigate to main app")
+                            path.append(.home)
                         }
                     )
                     .navigationBarBackButtonHidden(true)
+                case .home:
+                    HomeView()
+                        .navigationBarBackButtonHidden(true)
                 }
             }
         }
