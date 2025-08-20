@@ -15,7 +15,7 @@ struct ProfileSetupView: View {
     
     @State private var firstName: String = ""
     @State private var lastName: String = ""
-    @State private var bio: String = ""
+    @State private var username: String = ""
     @State private var selectedItem: PhotosPickerItem? = nil
     @State private var profileImage: UIImage? = nil
     @State private var isLoading: Bool = false
@@ -24,7 +24,7 @@ struct ProfileSetupView: View {
     @FocusState private var focusedField: Field?
     
     enum Field {
-        case firstName, lastName, bio
+        case firstName, lastName, username
     }
     
     private var isValid: Bool {
@@ -118,35 +118,39 @@ struct ProfileSetupView: View {
                         .textContentType(.familyName)
                         .autocapitalization(.words)
                         
-                        // Bio (optional)
+                        // Username
                         VStack(alignment: .leading, spacing: BrandSpacing.xs) {
                             HStack {
-                                Text("Bio (optional)")
+                                Text("Username")
                                     .font(BrandFont.caption1)
                                     .foregroundColor(BrandColor.lightBrown)
                                 
+                                Text("*")
+                                    .font(BrandFont.caption1)
+                                    .foregroundColor(BrandColor.orange)
+                                
                                 Spacer()
                                 
-                                Text("\(bio.count)/100")
+                                Text("\(username.count)/20")
                                     .font(BrandFont.caption2)
-                                    .foregroundColor(bio.count > 100 ? BrandColor.error : BrandColor.lightBrown)
+                                    .foregroundColor(username.count > 20 ? BrandColor.error : BrandColor.lightBrown)
                             }
                             
-                            TextField("", text: $bio, axis: .vertical)
-                                .focused($focusedField, equals: .bio)
+                            TextField("", text: $username)
+                                .focused($focusedField, equals: .username)
                                 .foregroundColor(BrandColor.black)
                                 .font(BrandFont.body)
                                 .padding(.vertical, BrandSpacing.sm)
-                                .onChange(of: bio) { oldValue, newValue in
-                                    if newValue.count > 100 {
-                                        bio = String(newValue.prefix(100))
+                                .onChange(of: username) { oldValue, newValue in
+                                    if newValue.count > 20 {
+                                        username = String(newValue.prefix(20))
                                     }
                                 }
                             
                             Rectangle()
-                                .fill(focusedField == .bio ? BrandColor.orange : BrandColor.lightBrown)
+                                .fill(focusedField == .username ? BrandColor.orange : BrandColor.lightBrown)
                                 .frame(height: 1)
-                                .animation(.easeInOut(duration: 0.2), value: focusedField == .bio)
+                                .animation(.easeInOut(duration: 0.2), value: focusedField == .username)
                         }
                     }
                     .padding(.bottom, BrandSpacing.xl)
@@ -199,20 +203,8 @@ struct ProfileSetupView: View {
         errorMessage = nil
         defer { isLoading = false }
         
-        // Here you would typically save the profile data to your backend
-        // For now, we'll just simulate a successful setup
         do {
-            // Simulate API call
-            try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-            
-            // In a real app, you'd save to Supabase:
-            // let profileData = [
-            //     "first_name": firstName,
-            //     "last_name": lastName,
-            //     "bio": bio.isEmpty ? nil : bio,
-            //     "avatar_url": profileImageUrl
-            // ]
-            // try await supabase.from("profiles").insert(profileData).execute()
+            let user = try await supabase.auth.session.user
             
             onComplete?()
         } catch {
