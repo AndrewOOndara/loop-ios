@@ -9,6 +9,7 @@
 
 import SwiftUI
 import PhotosUI
+import Storage
 
 struct ProfileSetupView: View {
     var onComplete: (() -> Void)?
@@ -195,6 +196,7 @@ struct ProfileSetupView: View {
         }
     }
     
+    
     // MARK: - Actions
     private func completeSetup() async {
         guard isValid, !isLoading else { return }
@@ -206,14 +208,62 @@ struct ProfileSetupView: View {
         do {
             let user = try await supabase.auth.session.user
             
+            // Create profile data struct
+            var profileData = ProfileUpdateData(
+                id: user.id.uuidString,
+                first_name: firstName.trimmingCharacters(in: .whitespacesAndNewlines),
+                last_name: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
+                username: username.trimmingCharacters(in: .whitespacesAndNewlines),
+                updated_at: ISO8601DateFormatter().string(from: Date()),
+                avatar_url: nil
+            )
+            
+            // Upload profile image if selected
+            if let profileImage = profileImage,
+               let imageData = profileImage.jpegData(compressionQuality: 0.8) {
+                let fileName = "\(user.id)_profile_\(UUID().uuidString).jpg"
+                
+                // Upload to Supabase storage
+                let _ = try await supabase.storage
+                    .from("avatars")
+                    .upload(
+                        fileName,
+                        data: imageData,
+                        options: FileOptions(contentType: "image/jpeg")
+                    )
+                
+                // Get public URL
+                let publicURL = try supabase.storage
+                    .from("avatars")
+                    .getPublicURL(path: fileName)
+                
+                profileData.avatar_url = publicURL.absoluteString
+            }
+            
+            // Update user profile in database
+            let _ = try await supabase
+                .from("profiles")
+                .upsert(profileData)
+                .execute()
+            
+            // Call completion handler
             onComplete?()
+            
         } catch {
             errorMessage = "Failed to set up profile. Please try again."
-            #if DEBUG
             print("Profile setup error:", error.localizedDescription)
-            #endif
         }
     }
+}
+
+// MARK: - ProfileUpdateData Struct
+struct ProfileUpdateData: Codable {
+    let id: String
+    let first_name: String
+    let last_name: String
+    let username: String
+    let updated_at: String
+    var avatar_url: String?
 }
 
 // MARK: - UnderlinedField Component
