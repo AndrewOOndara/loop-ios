@@ -31,7 +31,7 @@ struct HomeView: View {
                 
                 // Main content area - Scrollable
                 ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(alignment: .leading, spacing: BrandSpacing.xxl) {
+                    LazyVStack(alignment: .leading, spacing: BrandSpacing.sm) {
                         ForEach(groups) { group in
                             GroupCard(
                                 group: group,
@@ -62,7 +62,7 @@ struct HomeView: View {
                             )
                         }
                     }
-                    .padding(.horizontal, BrandSpacing.lg)
+                    .padding(.horizontal, BrandSpacing.sm)
                     .padding(.bottom, 100) // Ensure content doesn't get hidden behind navbar
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure ScrollView takes available space

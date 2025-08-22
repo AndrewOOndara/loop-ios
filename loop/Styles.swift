@@ -227,15 +227,8 @@ struct CardStyle: ViewModifier {
         content
             .background(BrandColor.systemBackground)
             .cornerRadius(BrandUI.cornerRadiusLarge)
-            .shadow(
-                color: .black.opacity(BrandUI.shadowOpacity),
-                radius: BrandUI.shadowRadius,
-                x: BrandUI.shadowOffset.width,
-                y: BrandUI.shadowOffset.height
-            )
     }
 }
-
 struct ListRowStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
