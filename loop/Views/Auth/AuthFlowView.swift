@@ -13,6 +13,8 @@ enum AuthRoute: Hashable {
     case verify(phone: String)
     case profileSetup
     case home
+    case groupDetail(group: GroupModel)
+    case notifications
 }
 
 struct AuthFlowView: View {
@@ -47,7 +49,13 @@ struct AuthFlowView: View {
                     )
                     .navigationBarBackButtonHidden(true)
                 case .home:
-                    HomeView()
+                    HomeView(navigationPath: $path)
+                        .navigationBarBackButtonHidden(true)
+                case .groupDetail(let group):
+                    GroupDetailView(group: group)
+                        .navigationBarBackButtonHidden(true)
+                case .notifications:
+                    NotificationView()
                         .navigationBarBackButtonHidden(true)
                 }
             }
