@@ -11,6 +11,7 @@ struct GroupCard: View {
     let group: GroupModel
     var onGroupTap: () -> Void
     var onMenuTap: () -> Void
+    @State private var isPressed: Bool = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: BrandSpacing.md) {
@@ -18,15 +19,20 @@ struct GroupCard: View {
             HStack {
                 // Group Name with Arrow
                 Button {
-                    onGroupTap()
+                    // Temporary highlight then navigate
+                    isPressed = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                        isPressed = false
+                        onGroupTap()
+                    }
                 } label: {
                     HStack(spacing: BrandSpacing.xs) {
                         Text(group.name)
                             .font(BrandFont.title2)
-                            .foregroundColor(BrandColor.black)
+                            .foregroundColor(isPressed ? BrandColor.orange : BrandColor.black)
                         Image(systemName: "chevron.right")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(BrandColor.orange)
+                            .foregroundColor(isPressed ? BrandColor.orange : BrandColor.black)
                     }
                 }
                 .buttonStyle(.plain)

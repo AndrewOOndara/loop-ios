@@ -73,7 +73,7 @@ struct NavigationBar: View {
 }
 
 #Preview {
-    @State var selectedTab: NavigationBar.Tab = .home
+    @Previewable @State var selectedTab: NavigationBar.Tab = .home
     return NavigationBar(selectedTab: $selectedTab)
         .background(BrandColor.cream)
 }

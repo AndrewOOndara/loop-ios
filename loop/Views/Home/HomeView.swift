@@ -1,21 +1,28 @@
 import SwiftUI
 
 struct HomeView: View {
+    @Binding var navigationPath: [AuthRoute]
     @State private var selectedTab: NavigationBar.Tab = .home
     
     // Sample data - in real app this would come from backend
     let groups: [GroupModel] = [
         GroupModel(
             id: UUID(),
-            name: "jones 2025",
-            lastUpload: "Last upload by Sarah Luan on 7/30/2025 at 11:10 AM",
+            name: "test group 1",
+            lastUpload: "Last upload by test user on 8/01/2025 at 1:00 PM",
             previewImages: ["photo1", "photo2", "photo3", "photo4"]
         ),
         GroupModel(
             id: UUID(),
-            name: "rice volleyball",
-            lastUpload: "Last upload by Sam Lim on 7/31/2025 at 4:13 PM",
-            previewImages: ["photo5", "photo6", "photo7", "photo8"]
+            name: "test group 2",
+            lastUpload: "Last upload by test user on 8/01/2025 at 1:05 PM",
+            previewImages: ["photo1", "photo2", "photo3", "photo4"]
+        ),
+        GroupModel(
+            id: UUID(),
+            name: "test group 3",
+            lastUpload: "Last upload by test user on 8/01/2025 at 1:10 PM",
+            previewImages: ["photo1", "photo2", "photo3", "photo4"]
         )
     ]
     
@@ -84,12 +91,12 @@ struct HomeView: View {
     // MARK: - Navigation Actions
     private func navigateToNotifications() {
         print("Navigate to notifications")
-        // TODO: Implement navigation to notifications view
+        navigationPath.append(.notifications)
     }
     
     private func navigateToGroup(_ group: GroupModel) {
         print("Navigate to group: \(group.name)")
-        // TODO: Implement navigation to group detail view
+        navigationPath.append(.groupDetail(group: group))
     }
     
     private func showGroupMenu(_ group: GroupModel) {
@@ -99,5 +106,5 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    HomeView(navigationPath: .constant([]))
 }
