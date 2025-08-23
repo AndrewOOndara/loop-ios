@@ -32,7 +32,12 @@ struct AuthFlowView: View {
                     VerificationView(
                         phone: phone,
                         onSuccess: {
+                            // New user - proceed to profile setup
                             path.append(.profileSetup)
+                        },
+                        onExistingUser: {
+                            // Existing user - skip profile setup and go to home
+                            path.append(.home)
                         },
                         onBack: {
                             if !path.isEmpty {

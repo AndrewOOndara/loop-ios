@@ -11,8 +11,9 @@ import SwiftUI
 
 struct VerificationView: View {
     let phone: String
-    var onSuccess: (() -> Void)?
-    var onBack: (() -> Void)?
+    var onSuccess: (() -> Void)? = nil
+    var onExistingUser: (() -> Void)? = nil
+    var onBack: (() -> Void)? = nil
     
     @State private var code: [String] = Array(repeating: "", count: 6)
     @State private var isLoading: Bool = false
@@ -206,7 +207,14 @@ struct VerificationView: View {
         do {
             // Verify OTP with Supabase
             try await supabase.auth.verifyOTP(phone: phone, token: codeString, type: .sms)
-            onSuccess?()
+            
+            #if DEBUG
+            print("✅ OTP verification successful for phone: \(phone)")
+            #endif
+            
+            // Check if user already has a profile
+            await checkExistingProfile()
+            
         } catch {
             errorMessage = "Invalid code. Please try again."
             // Clear the code for retry
@@ -218,13 +226,46 @@ struct VerificationView: View {
             #endif
         }
     }
+    
+    private func checkExistingProfile() async {
+        do {
+            let existingProfile = try await ProfileService.shared.checkProfileExists(phoneNumber: phone)
+            
+            DispatchQueue.main.async {
+                if existingProfile != nil {
+                    // User already has a profile - skip profile setup and go to home
+                    #if DEBUG
+                    print("🏠 Existing user - navigating to home")
+                    #endif
+                    onExistingUser?()
+                } else {
+                    // New user - proceed to profile setup
+                    #if DEBUG
+                    print("👤 New user - proceeding to profile setup")
+                    #endif
+                    onSuccess?()
+                }
+            }
+        } catch {
+            #if DEBUG
+            print("⚠️ Error checking profile existence: \(error)")
+            print("🔄 Falling back to profile setup flow")
+            #endif
+            
+            // If there's an error checking the profile, proceed to profile setup as fallback
+            DispatchQueue.main.async {
+                onSuccess?()
+            }
+        }
+    }
 }
 
 // MARK: - Preview
 #Preview {
     VerificationView(
         phone: "+1234567890",
-        onSuccess: { print("Verification successful") },
+        onSuccess: { print("New user - proceed to profile setup") },
+        onExistingUser: { print("Existing user - go to home") },
         onBack: { print("Back tapped") }
     )
 }

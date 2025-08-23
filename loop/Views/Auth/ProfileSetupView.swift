@@ -208,15 +208,8 @@ struct ProfileSetupView: View {
         do {
             let user = try await supabase.auth.session.user
             
-            // Create profile data struct
-            var profileData = ProfileUpdateData(
-                id: user.id.uuidString,
-                first_name: firstName.trimmingCharacters(in: .whitespacesAndNewlines),
-                last_name: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
-                username: username.trimmingCharacters(in: .whitespacesAndNewlines),
-                updated_at: ISO8601DateFormatter().string(from: Date()),
-                avatar_url: nil
-            )
+            // Handle profile image upload first if selected
+            var avatarURL: String? = nil
             
             // Upload profile image if selected
             if let profileImage = profileImage,
@@ -237,14 +230,19 @@ struct ProfileSetupView: View {
                     .from("avatars")
                     .getPublicURL(path: fileName)
                 
-                profileData.avatar_url = publicURL.absoluteString
+                avatarURL = publicURL.absoluteString
             }
             
-            // Update user profile in database
-            let _ = try await supabase
-                .from("profiles")
-                .upsert(profileData)
-                .execute()
+            // Create the profile using ProfileService
+            let _ = try await ProfileService.shared.createProfile(
+                userID: user.id,
+                phoneNumber: user.phone ?? "",
+                firstName: firstName.trimmingCharacters(in: .whitespacesAndNewlines),
+                lastName: lastName.trimmingCharacters(in: .whitespacesAndNewlines),
+                username: username.trimmingCharacters(in: .whitespacesAndNewlines),
+                profileBio: nil,
+                avatarURL: avatarURL
+            )
             
             // Call completion handler
             onComplete?()

@@ -182,7 +182,7 @@ struct ProfileView: View {
                 .value
             
             username = profile.username ?? ""
-            fullName = profile.fullName ?? ""
+            fullName = "\(profile.firstName ?? "") \(profile.lastName ?? "")".trimmingCharacters(in: .whitespaces)
             
             if let avatarURL = profile.avatarURL, !avatarURL.isEmpty {
                 try await downloadImage(path: avatarURL)
@@ -201,10 +201,19 @@ struct ProfileView: View {
                 
                 let currentUser = try await supabase.auth.session.user
                 
+                // Get current user phone from auth
+                let userPhone = currentUser.phone ?? ""
+                
                 let updatedProfile = Profile(
+                    id: currentUser.id,
+                    phoneNumber: userPhone,
+                    firstName: fullName.components(separatedBy: " ").first ?? "",
+                    lastName: fullName.components(separatedBy: " ").dropFirst().joined(separator: " "),
                     username: username,
-                    fullName: fullName,
-                    avatarURL: imageURL
+                    profileBio: nil,
+                    avatarURL: imageURL,
+                    createdAt: nil,
+                    updatedAt: Date()
                 )
                 
                 try await supabase
