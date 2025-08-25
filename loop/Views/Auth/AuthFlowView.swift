@@ -15,6 +15,12 @@ enum AuthRoute: Hashable {
     case home
     case groupDetail(group: GroupModel)
     case notifications
+    case joinGroup
+    case joinGroupConfirm(groupCode: String)
+    case joinGroupSuccess
+    case createGroup
+    case createGroupCode(groupName: String, groupImage: UIImage?)
+    case createGroupPending(groupName: String, groupImage: UIImage?)
 }
 
 struct AuthFlowView: View {
@@ -32,11 +38,9 @@ struct AuthFlowView: View {
                     VerificationView(
                         phone: phone,
                         onSuccess: {
-                            // New user - proceed to profile setup
                             path.append(.profileSetup)
                         },
                         onExistingUser: {
-                            // Existing user - skip profile setup and go to home
                             path.append(.home)
                         },
                         onBack: {
@@ -62,6 +66,88 @@ struct AuthFlowView: View {
                 case .notifications:
                     NotificationView()
                         .navigationBarBackButtonHidden(true)
+                case .joinGroup:
+                    JoinGroupView(
+                        onNext: { groupCode in
+                            path.append(.joinGroupConfirm(groupCode: groupCode))
+                        },
+                        onBack: {
+                            if !path.isEmpty {
+                                path.removeLast()
+                            }
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
+                case .joinGroupConfirm(let groupCode):
+                    JoinGroupConfirmView(
+                        groupCode: groupCode,
+                        onConfirm: {
+                            path.append(.joinGroupSuccess)
+                        },
+                        onCancel: {
+                            // Go back to join group code entry
+                            if !path.isEmpty {
+                                path.removeLast()
+                            }
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
+                case .joinGroupSuccess:
+                    JoinGroupSuccessView {
+                        // Go back to home (clear all group-related navigation)
+                        path.removeAll { route in
+                            switch route {
+                            case .joinGroup, .joinGroupConfirm, .joinGroupSuccess:
+                                return true
+                            default:
+                                return false
+                            }
+                        }
+                    }
+                    .navigationBarBackButtonHidden(true)
+                case .createGroup:
+                    CreateGroupView(
+                        onNext: { groupName, groupImage in
+                            path.append(.createGroupCode(groupName: groupName, groupImage: groupImage))
+                        },
+                        onBack: {
+                            if !path.isEmpty {
+                                path.removeLast()
+                            }
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
+                case .createGroupCode(let groupName, let groupImage):
+                    CreateGroupCodeView(
+                        groupName: groupName,
+                        groupImage: groupImage,
+                        onNext: {
+                            path.append(.createGroupPending(groupName: groupName, groupImage: groupImage))
+                        },
+                        onBack: {
+                            if !path.isEmpty {
+                                path.removeLast()
+                            }
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
+                case .createGroupPending(let groupName, let groupImage):
+                    CreateGroupPendingView(
+                        groupName: groupName,
+                        groupImage: groupImage,
+                        onDone: {
+                            // Go back to home (clear all group-related navigation)
+                            path.removeAll { route in
+                                switch route {
+                                case .createGroup, .createGroupCode, .createGroupPending:
+                                    return true
+                                default:
+                                    return false
+                                }
+                            }
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
                 }
             }
         }

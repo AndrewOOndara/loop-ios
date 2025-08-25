@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @Binding var navigationPath: [AuthRoute]
     @State private var selectedTab: NavigationBar.Tab = .home
+    @State private var showingGroupOptions = false
     
     // Sample data - in real app this would come from backend
     let groups: [GroupModel] = [
@@ -32,9 +33,14 @@ struct HomeView: View {
             
             VStack(spacing: 0) {
                 // Header with logo and notification bell
-                HomeHeader {
-                    navigateToNotifications()
-                }
+                HomeHeader(
+                    onNotificationTap: {
+                        navigateToNotifications()
+                    },
+                    onCreateGroupTap: {
+                        showGroupOptions()
+                    }
+                )
                 
                 // Main content area - Scrollable
                 ScrollView(.vertical, showsIndicators: true) {
@@ -86,6 +92,18 @@ struct HomeView: View {
             }
         }
         .navigationBarHidden(true)
+        .sheet(isPresented: $showingGroupOptions) {
+            GroupOptionsView(
+                onJoinGroup: {
+                    showingGroupOptions = false
+                    navigateToJoinGroup()
+                },
+                onCreateGroup: {
+                    showingGroupOptions = false
+                    navigateToCreateGroup()
+                }
+            )
+        }
     }
     
     // MARK: - Navigation Actions
@@ -102,6 +120,20 @@ struct HomeView: View {
     private func showGroupMenu(_ group: GroupModel) {
         print("Show menu for group: \(group.name)")
         // TODO: Implement group action menu
+    }
+    
+    private func showGroupOptions() {
+        showingGroupOptions = true
+    }
+    
+    private func navigateToJoinGroup() {
+        print("Navigate to join group")
+        navigationPath.append(.joinGroup)
+    }
+    
+    private func navigateToCreateGroup() {
+        print("Navigate to create group")
+        navigationPath.append(.createGroup)
     }
 }
 
