@@ -1,18 +1,16 @@
 import SwiftUI
 
 struct JoinGroupConfirmView: View {
-    let groupCode: String
+    let group: UserGroup
     @State private var isLoading: Bool = false
+    @State private var errorMessage: String?
+    @State private var memberCount: Int = 0
+    @State private var founderName: String = "Unknown"
+    
+    private let groupService = GroupService()
     
     var onConfirm: () -> Void
     var onCancel: () -> Void
-    
-    // Demo group data - in real app this would come from backend
-    private let demoGroup = (
-        name: "test group 1",
-        founder: "Sarah Luan",
-        memberCount: 3
-    )
     
     var body: some View {
         VStack(spacing: 0) {
@@ -68,15 +66,15 @@ struct JoinGroupConfirmView: View {
                     
                     // Group Info
                     VStack(spacing: BrandSpacing.sm) {
-                        Text(demoGroup.name)
+                        Text(group.name)
                             .font(BrandFont.title2)
                             .foregroundColor(BrandColor.black)
                         
-                        Text("Founded by \(demoGroup.founder)")
+                        Text("Founded by \(founderName)")
                             .font(BrandFont.body)
                             .foregroundColor(BrandColor.lightBrown)
                         
-                        Text("\(demoGroup.memberCount) members")
+                        Text("\(memberCount) members")
                             .font(BrandFont.caption1)
                             .foregroundColor(BrandColor.lightBrown)
                     }
@@ -119,27 +117,97 @@ struct JoinGroupConfirmView: View {
                 }
                 .padding(.horizontal, BrandSpacing.lg)
                 
+                // Error message
+                if let errorMessage {
+                    Text(errorMessage)
+                        .errorMessage()
+                        .padding(.horizontal, BrandSpacing.lg)
+                }
+                
                 Spacer() // Pushes content to top 3/4
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(BrandColor.cream)
+        .onAppear {
+            loadGroupInfo()
+        }
+    }
+    
+    private func loadGroupInfo() {
+        Task {
+            do {
+                // Get member count
+                let count = try await groupService.getMemberCount(groupId: group.id)
+                
+                // Note: In a real app, you'd also fetch the founder's name from profiles table
+                // For now, we'll show a placeholder
+                
+                await MainActor.run {
+                    memberCount = count
+                    founderName = "Group Admin" // Placeholder - would fetch from profiles in real app
+                }
+            } catch {
+                print("[JoinGroupConfirm] Error loading group info: \(error)")
+            }
+        }
     }
     
     private func joinGroup() {
         isLoading = true
+        errorMessage = nil
         
-        // Simulate API call delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isLoading = false
-            onConfirm()
+        Task {
+            do {
+                // Get current user ID from Supabase auth
+                guard let user = supabase.auth.currentUser else {
+                    await MainActor.run {
+                        isLoading = false
+                        errorMessage = "Please log in to join a group"
+                    }
+                    return
+                }
+                
+                print("[JoinGroupConfirm] User \(user.id) joining group \(group.id)")
+                
+                // Actually join the group
+                _ = try await groupService.joinGroup(groupId: group.id, userId: user.id)
+                
+                await MainActor.run {
+                    isLoading = false
+                    onConfirm() // Navigate to success screen
+                }
+                
+            } catch {
+                print("[JoinGroupConfirm] Error joining group: \(error)")
+                await MainActor.run {
+                    isLoading = false
+                    if let groupError = error as? GroupServiceError {
+                        errorMessage = groupError.localizedDescription
+                    } else {
+                        errorMessage = "Failed to join group. Please try again."
+                    }
+                }
+            }
         }
     }
 }
 
 #Preview {
-    JoinGroupConfirmView(
+    let previewGroup = UserGroup(
+        id: 1,
+        name: "Preview Group",
         groupCode: "1234",
+        avatarURL: nil,
+        createdBy: UUID(),
+        createdAt: Date(),
+        updatedAt: Date(),
+        isActive: true,
+        maxMembers: 6
+    )
+    
+    JoinGroupConfirmView(
+        group: previewGroup,
         onConfirm: { print("Group joined!") },
         onCancel: { print("Cancelled") }
     )

@@ -16,7 +16,7 @@ enum AuthRoute: Hashable {
     case groupDetail(group: GroupModel)
     case notifications
     case joinGroup
-    case joinGroupConfirm(groupCode: String)
+    case joinGroupConfirm(group: UserGroup)
     case joinGroupSuccess
     case createGroup
     case createGroupCode(groupName: String, groupImage: UIImage?)
@@ -68,8 +68,8 @@ struct AuthFlowView: View {
                         .navigationBarBackButtonHidden(true)
                 case .joinGroup:
                     JoinGroupView(
-                        onNext: { groupCode in
-                            path.append(.joinGroupConfirm(groupCode: groupCode))
+                        onNext: { group in
+                            path.append(.joinGroupConfirm(group: group))
                         },
                         onBack: {
                             if !path.isEmpty {
@@ -78,9 +78,9 @@ struct AuthFlowView: View {
                         }
                     )
                     .navigationBarBackButtonHidden(true)
-                case .joinGroupConfirm(let groupCode):
+                case .joinGroupConfirm(let group):
                     JoinGroupConfirmView(
-                        groupCode: groupCode,
+                        group: group,
                         onConfirm: {
                             path.append(.joinGroupSuccess)
                         },

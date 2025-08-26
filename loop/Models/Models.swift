@@ -47,4 +47,52 @@ struct Post: Identifiable, Codable {
     }
 }
 
+struct UserGroup: Codable, Identifiable, Hashable {
+    let id: Int // Changed from UUID to Int to match your database
+    let name: String
+    let groupCode: String
+    let avatarURL: String?
+    let createdBy: UUID
+    let createdAt: Date?
+    let updatedAt: Date?
+    let isActive: Bool
+    let maxMembers: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case groupCode = "group_code"
+        case avatarURL = "avatar_url"
+        case createdBy = "created_by"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case isActive = "is_active"
+        case maxMembers = "max_members"
+    }
+}
+
+struct GroupMember: Codable, Identifiable, Hashable {
+    let id: Int // Changed from UUID to Int to match your database  
+    let groupId: Int // Changed from UUID to Int
+    let userId: UUID
+    let role: String
+    let joinedAt: Date?
+    let isActive: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case groupId = "group_id"
+        case userId = "user_id"
+        case role
+        case joinedAt = "joined_at"
+        case isActive = "is_active"
+    }
+}
+
+// Helper struct for joining groups
+struct GroupJoinRequest {
+    let groupCode: String
+    let userId: UUID
+}
+
 

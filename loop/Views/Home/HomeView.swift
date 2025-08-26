@@ -4,28 +4,11 @@ struct HomeView: View {
     @Binding var navigationPath: [AuthRoute]
     @State private var selectedTab: NavigationBar.Tab = .home
     @State private var showingGroupOptions = false
+    @State private var groups: [GroupModel] = []
+    @State private var isLoading = true
+    @State private var errorMessage: String?
     
-    // Sample data - in real app this would come from backend
-    let groups: [GroupModel] = [
-        GroupModel(
-            id: UUID(),
-            name: "test group 1",
-            lastUpload: "Last upload by test user on 8/01/2025 at 1:00 PM",
-            previewImages: ["photo1", "photo2", "photo3", "photo4"]
-        ),
-        GroupModel(
-            id: UUID(),
-            name: "test group 2",
-            lastUpload: "Last upload by test user on 8/01/2025 at 1:05 PM",
-            previewImages: ["photo1", "photo2", "photo3", "photo4"]
-        ),
-        GroupModel(
-            id: UUID(),
-            name: "test group 3",
-            lastUpload: "Last upload by test user on 8/01/2025 at 1:10 PM",
-            previewImages: ["photo1", "photo2", "photo3", "photo4"]
-        )
-    ]
+    private let groupService = GroupService()
     
     var body: some View {
         ZStack {
@@ -45,34 +28,74 @@ struct HomeView: View {
                 // Main content area - Scrollable
                 ScrollView(.vertical, showsIndicators: true) {
                     LazyVStack(alignment: .leading, spacing: BrandSpacing.sm) {
-                        ForEach(groups) { group in
-                            GroupCard(
-                                group: group,
-                                onGroupTap: {
-                                    navigateToGroup(group)
-                                },
-                                onMenuTap: {
-                                    showGroupMenu(group)
+                        if isLoading {
+                            // Loading state
+                            VStack(spacing: BrandSpacing.lg) {
+                                ProgressView()
+                                    .tint(BrandColor.orange)
+                                Text("Loading your groups...")
+                                    .font(BrandFont.body)
+                                    .foregroundColor(BrandColor.lightBrown)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 200)
+                            .padding(.top, BrandSpacing.xl)
+                        } else if groups.isEmpty {
+                            // Empty state - centered on screen
+                            
+                            Spacer()
+                            
+                            VStack(spacing: BrandSpacing.lg) {
+                                Image(systemName: "person.2.badge.plus")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(BrandColor.lightBrown)
+                                    .padding(.top, BrandSpacing.xl)
+                                    .padding(.top, BrandSpacing.xl)
+                                    .padding(.top, BrandSpacing.xl)
+                                    .padding(.top, BrandSpacing.xl)
+                                
+                                Text("No Groups Yet")
+                                    .font(BrandFont.title2)
+                                    .foregroundColor(BrandColor.black)
+                                
+                                Text("Join a group or create your own to get started!")
+                                    .font(BrandFont.body)
+                                    .foregroundColor(BrandColor.lightBrown)
+                                    .multilineTextAlignment(.center)
+                                
+                                Button {
+                                    showGroupOptions()
+                                } label: {
+                                    Text("Join or Create Group")
+                                        .font(BrandFont.headline)
+                                        .foregroundColor(.white)
                                 }
-                            )
+                                .primaryButton(isEnabled: true)
+                                .padding(.horizontal, BrandSpacing.xl)
+                                .padding(.top, BrandSpacing.md)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, BrandSpacing.lg)
+                            
+                            Spacer()
+                        } else {
+                            // Groups list
+                            ForEach(groups) { group in
+                                GroupCard(
+                                    group: group,
+                                    onGroupTap: {
+                                        navigateToGroup(group)
+                                    },
+                                    onMenuTap: {
+                                        showGroupMenu(group)
+                                    }
+                                )
+                            }
                         }
                         
-                        // Add some extra content to test scrolling
-                        ForEach(0..<3, id: \.self) { index in
-                            GroupCard(
-                                group: GroupModel(
-                                    id: UUID(),
-                                    name: "test group \(index + 3)",
-                                    lastUpload: "Last upload by Test User on 8/1/2025 at 2:00 PM",
-                                    previewImages: ["photo1", "photo2", "photo3", "photo4"]
-                                ),
-                                onGroupTap: {
-                                    print("Test group \(index + 3) tapped")
-                                },
-                                onMenuTap: {
-                                    print("Test group \(index + 3) menu tapped")
-                                }
-                            )
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .errorMessage()
+                                .padding(.horizontal, BrandSpacing.lg)
                         }
                     }
                     .padding(.horizontal, BrandSpacing.sm)
@@ -92,6 +115,9 @@ struct HomeView: View {
             }
         }
         .navigationBarHidden(true)
+        .onAppear {
+            loadUserGroups()
+        }
         .sheet(isPresented: $showingGroupOptions) {
             GroupOptionsView(
                 onJoinGroup: {
@@ -131,9 +157,51 @@ struct HomeView: View {
         navigationPath.append(.joinGroup)
     }
     
+    func refreshGroups() {
+        loadUserGroups()
+    }
+    
     private func navigateToCreateGroup() {
         print("Navigate to create group")
         navigationPath.append(.createGroup)
+    }
+    
+    // MARK: - Data Loading
+    private func loadUserGroups() {
+        guard let currentUser = supabase.auth.currentUser else {
+            print("[HomeView] No current user")
+            isLoading = false
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                let userGroups = try await groupService.getUserGroups(userId: currentUser.id)
+                await MainActor.run {
+                    self.groups = userGroups.map { convertToGroupModel($0) }
+                    self.isLoading = false
+                    print("[HomeView] Loaded \(userGroups.count) groups")
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to load groups"
+                    self.isLoading = false
+                    print("[HomeView] Error loading groups: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func convertToGroupModel(_ userGroup: UserGroup) -> GroupModel {
+        return GroupModel(
+            id: UUID(), // Generate a new UUID for UI purposes
+            name: userGroup.name,
+            lastUpload: "No uploads yet", // Placeholder - would come from actual uploads
+            previewImages: [] // Placeholder - would come from actual uploads
+        )
     }
 }
 

@@ -6,7 +6,9 @@ struct JoinGroupView: View {
     @State private var errorMessage: String?
     @FocusState private var codeFieldFocused: Bool
     
-    var onNext: (String) -> Void
+    private let groupService = GroupService()
+    
+    var onNext: (UserGroup) -> Void // Changed to pass the found UserGroup
     var onBack: (() -> Void)? = nil
     
     private var isValidCode: Bool {
@@ -161,21 +163,41 @@ struct JoinGroupView: View {
         isLoading = true
         errorMessage = nil
         
-        // Simulate API call delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isLoading = false
-            
-            // For demo purposes, always proceed to confirmation
-            // In real app, this would verify the code with backend
-            onNext(groupCode)
+        Task {
+            do {
+                print("[JoinGroup] Looking up group with code: \(groupCode)")
+                
+                // Look up the group by code
+                guard let group = try await groupService.findGroup(by: groupCode) else {
+                    await MainActor.run {
+                        isLoading = false
+                        errorMessage = "Group not found. Please check the code and try again."
+                    }
+                    return
+                }
+                
+                print("[JoinGroup] Found group: \(group.name)")
+                
+                await MainActor.run {
+                    isLoading = false
+                    onNext(group) // Pass the found group to confirmation screen
+                }
+                
+            } catch {
+                print("[JoinGroup] Error looking up group: \(error)")
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = "Failed to look up group. Please try again."
+                }
+            }
         }
     }
 }
 
 #Preview {
     JoinGroupView(
-        onNext: { code in
-            print("Proceeding with code: \(code)")
+        onNext: { group in
+            print("Proceeding with group: \(group.name)")
         },
         onBack: {
             print("Back tapped")
