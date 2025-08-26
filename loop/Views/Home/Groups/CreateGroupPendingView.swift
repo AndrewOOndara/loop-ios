@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct CreateGroupPendingView: View {
-    let groupName: String
+    let group: UserGroup
     let groupImage: UIImage?
     
     var onDone: () -> Void
@@ -35,40 +35,48 @@ struct CreateGroupPendingView: View {
             .padding(.horizontal, BrandSpacing.lg)
             .padding(.top, BrandSpacing.md)
             .padding(.bottom, BrandSpacing.lg)
+            .padding(.bottom, BrandSpacing.xl)
+            .padding(.bottom, BrandSpacing.xl)
             
+            // Main content in top 3/4 of screen
             VStack(spacing: BrandSpacing.xl) {
-                // Success Content
-                VStack(spacing: BrandSpacing.xl) {
-                    // Status Message
-                    VStack(spacing: BrandSpacing.md) {
-                        Text("Your group \"\(groupName)\" is pending!")
-                            .font(BrandFont.title3)
-                            .foregroundColor(BrandColor.black)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, BrandSpacing.lg)
-                    }
-                    .padding(.top, BrandSpacing.xl)
-                    
-                    // Success Icon with checkmark
-                    ZStack {
-                        Circle()
-                            .fill(BrandColor.orange)
-                            .frame(width: 120, height: 120)
-                        
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 48, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                    
-                    // Additional Info
-                    Text("You must wait for at least 2 other friends to accept the invite to make the group official.")
-                        .font(BrandFont.body)
-                        .foregroundColor(BrandColor.lightBrown)
+                // Success Message - matching JoinGroupSuccessView style
+                VStack(spacing: BrandSpacing.lg) {
+                    Text("Your group")
+                        .font(BrandFont.title2)
+                        .foregroundColor(BrandColor.black)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, BrandSpacing.lg)
+                    
+                    Text(group.name)
+                        .font(BrandFont.title1)
+                        .foregroundColor(BrandColor.orange)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("has been created!")
+                        .font(BrandFont.title2)
+                        .foregroundColor(BrandColor.black)
+                        .multilineTextAlignment(.center)
                 }
                 
-                // Done Button
+                // Success Icon - matching JoinGroupSuccessView style
+                ZStack {
+                    Circle()
+                        .fill(BrandColor.cream)
+                        .frame(width: 120, height: 120)
+                    
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundColor(BrandColor.orange)
+                }
+                
+                // Additional Info
+                Text("Share the group code with friends so they can join and start sharing photos!")
+                    .font(BrandFont.body)
+                    .foregroundColor(BrandColor.lightBrown)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, BrandSpacing.lg)
+                
+                // Done Button - positioned closer to content
                 Button {
                     onDone()
                 } label: {
@@ -78,9 +86,10 @@ struct CreateGroupPendingView: View {
                 }
                 .primaryButton(isEnabled: true)
                 .padding(.horizontal, BrandSpacing.lg)
-                
-                Spacer() // Pushes content to top 3/4
+                .padding(.top, BrandSpacing.md)
             }
+            
+            Spacer() // Pushes all content to top 3/4
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(BrandColor.cream)
@@ -89,7 +98,7 @@ struct CreateGroupPendingView: View {
 
 #Preview {
     CreateGroupPendingView(
-        groupName: "My Test Group",
+        group: UserGroup(id: 1, name: "My Test Group", groupCode: "1234", avatarURL: nil, createdBy: UUID(), createdAt: Date(), updatedAt: Date(), isActive: true, maxMembers: 6),
         groupImage: nil,
         onDone: {
             print("Done tapped")

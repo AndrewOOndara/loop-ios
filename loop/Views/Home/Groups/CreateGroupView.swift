@@ -8,7 +8,9 @@ struct CreateGroupView: View {
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
     
-    var onNext: (String, UIImage?) -> Void
+    private let groupService = GroupService()
+    
+    var onNext: (UserGroup, UIImage?) -> Void // Changed to pass the created UserGroup
     var onBack: (() -> Void)? = nil
     
     private var isValidGroupName: Bool {
@@ -62,58 +64,47 @@ struct CreateGroupView: View {
                 
                 // Photo Upload Section
                 VStack(spacing: BrandSpacing.sm) {
-                    PhotosPicker(
-                        selection: $selectedPhoto,
-                        matching: .images,
-                        photoLibrary: .shared()
-                    ) {
-                        VStack(spacing: BrandSpacing.sm) {
-                            ZStack {
-                                if let groupImage {
-                                    // User selected image
-                                    Image(uiImage: groupImage)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: 120, height: 120)
-                                        .clipShape(Circle())
-                                } else {
-                                    // Default group logo with brand colors
-                                    Circle()
-                                        .fill(BrandColor.orange)
-                                        .frame(width: 120, height: 120)
-                                        .overlay(
-                                            Image(systemName: "person.3.fill")
-                                                .font(.system(size: 32, weight: .semibold))
-                                                .foregroundColor(.white)
-                                        )
-                                }
-                                
-                                // Camera overlay for upload hint - positioned on bottom right
-                                VStack {
-                                    Spacer()
-                                    HStack {
-                                        Spacer()
-                                        ZStack {
-                                            Circle()
-                                                .fill(BrandColor.black)
-                                                .frame(width: 32, height: 32)
-                                            
-                                            Image(systemName: "camera.fill")
-                                                .font(.system(size: 14))
-                                                .foregroundColor(.white)
-                                        }
-                                        .offset(x: -10, y: -10)
-                                    }
-                                }
+                    ZStack {
+                        // Group image or placeholder - matching ProfileSetupView style
+                        if let groupImage {
+                            Image(uiImage: groupImage)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
                                 .frame(width: 120, height: 120)
-                            }
-                            
-                            Text("Upload a group photo")
-                                .font(BrandFont.body)
-                                .foregroundColor(BrandColor.lightBrown)
+                                .clipShape(Circle())
+                        } else {
+                            Circle()
+                                .fill(BrandColor.white)
+                                .frame(width: 120, height: 120)
+                                .overlay(
+                                    Image(systemName: "person.3.fill")
+                                        .font(.system(size: 40))
+                                        .foregroundColor(BrandColor.lightBrown)
+                                )
                         }
+                        
+                        // Camera button - matching ProfileSetupView style
+                        PhotosPicker(
+                            selection: $selectedPhoto,
+                            matching: .images,
+                            photoLibrary: .shared()
+                        ) {
+                            ZStack {
+                                Circle()
+                                    .fill(BrandColor.orange)
+                                    .frame(width: 36, height: 36)
+                                
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .offset(x: 40, y: 40)
                     }
-                    .buttonStyle(.plain)
+                    
+                    Text("Upload a group photo")
+                        .font(BrandFont.caption1)
+                        .foregroundColor(BrandColor.lightBrown)
                 }
                 
                 // Group Name Input
@@ -195,13 +186,50 @@ struct CreateGroupView: View {
         
         let trimmedName = groupName.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // Simulate API call delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isLoading = false
-            
-            // For demo purposes, always proceed to group code
-            // In real app, this would create the group on backend
-            onNext(trimmedName, groupImage)
+        Task {
+            do {
+                // Get current user
+                guard let currentUser = supabase.auth.currentUser else {
+                    await MainActor.run {
+                        isLoading = false
+                        errorMessage = "Please log in to create a group"
+                    }
+                    return
+                }
+                
+                print("[CreateGroup] Creating group: \(trimmedName)")
+                
+                // TODO: Handle image upload to Supabase Storage if groupImage exists
+                var avatarURL: String? = nil
+                if let groupImage = groupImage {
+                    // For now, we'll skip image upload - you can add this later
+                    print("[CreateGroup] Image upload not implemented yet")
+                }
+                
+                // Create the group
+                let createdGroup = try await groupService.createGroup(
+                    name: trimmedName,
+                    createdBy: currentUser.id,
+                    avatarURL: avatarURL
+                )
+                
+                await MainActor.run {
+                    isLoading = false
+                    print("[CreateGroup] Successfully created group: \(createdGroup.name) with code: \(createdGroup.groupCode)")
+                    onNext(createdGroup, groupImage)
+                }
+                
+            } catch {
+                print("[CreateGroup] Error creating group: \(error)")
+                await MainActor.run {
+                    isLoading = false
+                    if let groupError = error as? GroupServiceError {
+                        errorMessage = groupError.localizedDescription
+                    } else {
+                        errorMessage = "Failed to create group. Please try again."
+                    }
+                }
+            }
         }
     }
 }

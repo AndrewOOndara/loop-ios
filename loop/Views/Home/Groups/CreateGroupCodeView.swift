@@ -1,13 +1,10 @@
 import SwiftUI
 
 struct CreateGroupCodeView: View {
-    let groupName: String
+    let group: UserGroup
     let groupImage: UIImage?
     @State private var isLoading: Bool = false
     @State private var showingShareSheet = false
-    
-    // Demo group code - in real app this would come from backend
-    private let groupCode = "1234"
     
     var onNext: () -> Void
     var onBack: (() -> Void)? = nil
@@ -58,7 +55,7 @@ struct CreateGroupCodeView: View {
                     
                     // Group Code Display
                     HStack(spacing: BrandSpacing.md) {
-                        ForEach(Array(groupCode.enumerated()), id: \.offset) { index, digit in
+                        ForEach(Array(group.groupCode.enumerated()), id: \.offset) { index, digit in
                             Text(String(digit))
                                 .font(.system(size: 32, weight: .medium))
                                 .foregroundColor(BrandColor.black)
@@ -136,7 +133,7 @@ struct CreateGroupCodeView: View {
     }
     
     private func generateShareText() -> String {
-        return "Join my group '\(groupName)' on Loop! Use code: \(groupCode)"
+        return "Join my group '\(group.name)' on Loop! Use code: \(group.groupCode)"
     }
     
     private func proceedToNext() {
@@ -163,7 +160,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 #Preview {
     CreateGroupCodeView(
-        groupName: "My Test Group",
+        group: UserGroup(id: 1, name: "My Test Group", groupCode: "1234", avatarURL: nil, createdBy: UUID(), createdAt: Date(), updatedAt: Date(), isActive: true, maxMembers: 6),
         groupImage: nil,
         onNext: {
             print("Proceeding to pending view")

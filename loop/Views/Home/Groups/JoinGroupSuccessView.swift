@@ -35,10 +35,11 @@ struct JoinGroupSuccessView: View {
             .padding(.horizontal, BrandSpacing.lg)
             .padding(.top, BrandSpacing.md)
             .padding(.bottom, BrandSpacing.lg)
+            .padding(.bottom, BrandSpacing.xl)
+            .padding(.bottom, BrandSpacing.xl)
             
-            Spacer()
             
-            // Success Content
+            // Main content in top 3/4 of screen
             VStack(spacing: BrandSpacing.xl) {
                 // Success Message
                 VStack(spacing: BrandSpacing.lg) {
@@ -70,21 +71,21 @@ struct JoinGroupSuccessView: View {
                     .foregroundColor(BrandColor.lightBrown)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, BrandSpacing.lg)
+                
+                // Done Button - positioned closer to content
+                Button {
+                    onDone()
+                } label: {
+                    Text("Done")
+                        .font(BrandFont.headline)
+                        .foregroundColor(.white)
+                }
+                .primaryButton(isEnabled: true)
+                .padding(.horizontal, BrandSpacing.lg)
+                .padding(.top, BrandSpacing.md)
             }
             
-            Spacer()
-            
-            // Done Button
-            Button {
-                onDone()
-            } label: {
-                Text("Done")
-                    .font(BrandFont.headline)
-                    .foregroundColor(.white)
-            }
-            .primaryButton(isEnabled: true)
-            .padding(.horizontal, BrandSpacing.lg)
-            .padding(.bottom, BrandSpacing.xl)
+            Spacer() // Pushes all content to top 3/4
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(BrandColor.cream)

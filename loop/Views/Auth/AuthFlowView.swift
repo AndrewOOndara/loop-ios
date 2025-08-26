@@ -19,8 +19,8 @@ enum AuthRoute: Hashable {
     case joinGroupConfirm(group: UserGroup)
     case joinGroupSuccess
     case createGroup
-    case createGroupCode(groupName: String, groupImage: UIImage?)
-    case createGroupPending(groupName: String, groupImage: UIImage?)
+    case createGroupCode(group: UserGroup, groupImage: UIImage?)
+    case createGroupPending(group: UserGroup, groupImage: UIImage?)
 }
 
 struct AuthFlowView: View {
@@ -107,8 +107,8 @@ struct AuthFlowView: View {
                     .navigationBarBackButtonHidden(true)
                 case .createGroup:
                     CreateGroupView(
-                        onNext: { groupName, groupImage in
-                            path.append(.createGroupCode(groupName: groupName, groupImage: groupImage))
+                        onNext: { group, groupImage in
+                            path.append(.createGroupCode(group: group, groupImage: groupImage))
                         },
                         onBack: {
                             if !path.isEmpty {
@@ -117,12 +117,12 @@ struct AuthFlowView: View {
                         }
                     )
                     .navigationBarBackButtonHidden(true)
-                case .createGroupCode(let groupName, let groupImage):
+                case .createGroupCode(let group, let groupImage):
                     CreateGroupCodeView(
-                        groupName: groupName,
+                        group: group,
                         groupImage: groupImage,
                         onNext: {
-                            path.append(.createGroupPending(groupName: groupName, groupImage: groupImage))
+                            path.append(.createGroupPending(group: group, groupImage: groupImage))
                         },
                         onBack: {
                             if !path.isEmpty {
@@ -131,9 +131,9 @@ struct AuthFlowView: View {
                         }
                     )
                     .navigationBarBackButtonHidden(true)
-                case .createGroupPending(let groupName, let groupImage):
+                case .createGroupPending(let group, let groupImage):
                     CreateGroupPendingView(
-                        groupName: groupName,
+                        group: group,
                         groupImage: groupImage,
                         onDone: {
                             // Go back to home (clear all group-related navigation)
