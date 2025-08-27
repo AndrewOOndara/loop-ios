@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @Binding var navigationPath: [AuthRoute]
+    @StateObject private var authManager = AuthManager.shared
     @State private var selectedTab: NavigationBar.Tab = .home
     @State private var showingGroupOptions = false
     @State private var groups: [GroupModel] = []
@@ -22,7 +23,7 @@ struct HomeView: View {
                     },
                     onCreateGroupTap: {
                         showGroupOptions()
-                    }
+                    },
                 )
                 
                 // Main content area - Scrollable

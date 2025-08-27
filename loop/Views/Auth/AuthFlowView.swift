@@ -25,6 +25,7 @@ enum AuthRoute: Hashable {
 
 struct AuthFlowView: View {
     @State private var path: [AuthRoute] = []
+    @StateObject private var authManager = AuthManager.shared
     
     var body: some View {
         NavigationStack(path: $path) {

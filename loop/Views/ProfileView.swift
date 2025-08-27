@@ -6,6 +6,8 @@ import SwiftUI
 struct ProfileView: View {
     @State var username = ""
     @State var fullName = ""
+    @StateObject private var authManager = AuthManager.shared
+        
     
     @State var isLoading = false
     
@@ -122,6 +124,20 @@ struct ProfileView: View {
                             .cornerRadius(25)
                         }
                         .disabled(isLoading)
+                        // Sign Out Button
+                        Button(action: signOut) {
+                            HStack {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    .font(.system(size: 16))
+                                Text("Sign Out")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(25)
+                        }
                     }
                     .padding(.horizontal, 30)
                     .padding(.vertical, 20)
@@ -256,6 +272,12 @@ struct ProfileView: View {
             )
         
         return filePath
+    }
+    
+    private func signOut() {
+        Task {
+            await authManager.signOut()
+        }
     }
 }
 
