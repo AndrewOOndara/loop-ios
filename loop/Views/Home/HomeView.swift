@@ -16,93 +16,119 @@ struct HomeView: View {
             BrandColor.white.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header with logo and notification bell
-                HomeHeader(
-                    onNotificationTap: {
-                        navigateToNotifications()
-                    },
-                    onCreateGroupTap: {
-                        showGroupOptions()
-                    },
-                )
-                
-                // Main content area - Scrollable
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(alignment: .leading, spacing: BrandSpacing.sm) {
-                        if isLoading {
-                            // Loading state
-                            VStack(spacing: BrandSpacing.lg) {
-                                ProgressView()
-                                    .tint(BrandColor.orange)
-                                Text("Loading your groups...")
-                                    .font(BrandFont.body)
-                                    .foregroundColor(BrandColor.lightBrown)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 200)
-                            .padding(.top, BrandSpacing.xl)
-                        } else if groups.isEmpty {
-                            // Empty state - centered on screen
-                            
-                            Spacer()
-                            
-                            VStack(spacing: BrandSpacing.lg) {
-                                Image(systemName: "person.2.badge.plus")
-                                    .font(.system(size: 48))
-                                    .foregroundColor(BrandColor.lightBrown)
-                                    .padding(.top, BrandSpacing.xl)
-                                    .padding(.top, BrandSpacing.xl)
-                                    .padding(.top, BrandSpacing.xl)
-                                    .padding(.top, BrandSpacing.xl)
-                                
-                                Text("No Groups Yet")
-                                    .font(BrandFont.title2)
-                                    .foregroundColor(BrandColor.black)
-                                
-                                Text("Join a group or create your own to get started!")
-                                    .font(BrandFont.body)
-                                    .foregroundColor(BrandColor.lightBrown)
-                                    .multilineTextAlignment(.center)
-                                
-                                Button {
+                // Main content area based on selected tab
+                Group {
+                    switch selectedTab {
+                    case .home:
+                        VStack(spacing: 0) {
+                            // Header with logo and notification bell
+                            HomeHeader(
+                                onNotificationTap: {
+                                    navigateToNotifications()
+                                },
+                                onCreateGroupTap: {
                                     showGroupOptions()
-                                } label: {
-                                    Text("Join or Create Group")
-                                        .font(BrandFont.headline)
-                                        .foregroundColor(.white)
-                                }
-                                .primaryButton(isEnabled: true)
-                                .padding(.horizontal, BrandSpacing.xl)
-                                .padding(.top, BrandSpacing.md)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.horizontal, BrandSpacing.lg)
+                                },
+                            )
                             
-                            Spacer()
-                        } else {
-                            // Groups list
-                            ForEach(groups) { group in
-                                GroupCard(
-                                    group: group,
-                                    onGroupTap: {
-                                        navigateToGroup(group)
-                                    },
-                                    onMenuTap: {
-                                        showGroupMenu(group)
+                            // Main content area - Scrollable
+                            ScrollView(.vertical, showsIndicators: true) {
+                                LazyVStack(alignment: .leading, spacing: BrandSpacing.sm) {
+                                    if isLoading {
+                                        // Loading state
+                                        VStack(spacing: BrandSpacing.lg) {
+                                            ProgressView()
+                                                .tint(BrandColor.orange)
+                                            Text("Loading your groups...")
+                                                .font(BrandFont.body)
+                                                .foregroundColor(BrandColor.lightBrown)
+                                        }
+                                        .frame(maxWidth: .infinity, minHeight: 200)
+                                        .padding(.top, BrandSpacing.xl)
+                                    } else if groups.isEmpty {
+                                        // Empty state - centered on screen
+                                        
+                                        Spacer()
+                                        
+                                        VStack(spacing: BrandSpacing.lg) {
+                                            Image(systemName: "person.2.badge.plus")
+                                                .font(.system(size: 48))
+                                                .foregroundColor(BrandColor.lightBrown)
+                                                .padding(.top, BrandSpacing.xl)
+                                                .padding(.top, BrandSpacing.xl)
+                                                .padding(.top, BrandSpacing.xl)
+                                                .padding(.top, BrandSpacing.xl)
+                                            
+                                            Text("No Groups Yet")
+                                                .font(BrandFont.title2)
+                                                .foregroundColor(BrandColor.black)
+                                            
+                                            Text("Join a group or create your own to get started!")
+                                                .font(BrandFont.body)
+                                                .foregroundColor(BrandColor.lightBrown)
+                                                .multilineTextAlignment(.center)
+                                            
+                                            Button {
+                                                showGroupOptions()
+                                            } label: {
+                                                Text("Join or Create Group")
+                                                    .font(BrandFont.headline)
+                                                    .foregroundColor(.white)
+                                            }
+                                            .primaryButton(isEnabled: true)
+                                            .padding(.horizontal, BrandSpacing.xl)
+                                            .padding(.top, BrandSpacing.md)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.horizontal, BrandSpacing.lg)
+                                        
+                                        Spacer()
+                                    } else {
+                                        // Groups list
+                                        ForEach(groups) { group in
+                                            GroupCard(
+                                                group: group,
+                                                onGroupTap: {
+                                                    navigateToGroup(group)
+                                                },
+                                                onMenuTap: {
+                                                    showGroupMenu(group)
+                                                }
+                                            )
+                                        }
                                     }
-                                )
+                                    
+                                    if let errorMessage {
+                                        Text(errorMessage)
+                                            .errorMessage()
+                                            .padding(.horizontal, BrandSpacing.lg)
+                                    }
+                                }
+                                .padding(.horizontal, BrandSpacing.sm)
+                                .padding(.bottom, 100) // Ensure content doesn't get hidden behind navbar
                             }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure ScrollView takes available space
                         }
-                        
-                        if let errorMessage {
-                            Text(errorMessage)
-                                .errorMessage()
-                                .padding(.horizontal, BrandSpacing.lg)
+                    
+                    case .upload:
+                        // Upload content placeholder
+                        VStack {
+                            Spacer()
+                            Text("Upload")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.primary)
+                            Text("Upload functionality coming soon")
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
+                            Spacer()
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(BrandColor.white.ignoresSafeArea())
+                    
+                    case .profile:
+                        ProfileMainView()
                     }
-                    .padding(.horizontal, BrandSpacing.sm)
-                    .padding(.bottom, 100) // Ensure content doesn't get hidden behind navbar
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure ScrollView takes available space
             }
             
             // Bottom Navigation Bar - Fixed to bottom
@@ -117,7 +143,14 @@ struct HomeView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            loadUserGroups()
+            if selectedTab == .home {
+                loadUserGroups()
+            }
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab == .home && groups.isEmpty {
+                loadUserGroups()
+            }
         }
         .sheet(isPresented: $showingGroupOptions) {
             GroupOptionsView(
