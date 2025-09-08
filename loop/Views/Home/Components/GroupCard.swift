@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GroupModel: Identifiable, Hashable {
     let id: UUID
+    let backendId: Int
     let name: String
     let lastUpload: String
     let previewImages: [String] // For now, these will be placeholder image names
@@ -82,6 +83,7 @@ struct GroupCard: View {
 #Preview {
     let sampleGroup = GroupModel(
         id: UUID(),
+        backendId: 1,
         name: "jones 2025",
         lastUpload: "Last upload by Sarah Luan on 7/30/2025 at 11:10 AM",
         previewImages: ["photo1", "photo2", "photo3", "photo4"]

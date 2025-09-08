@@ -232,6 +232,7 @@ struct HomeView: View {
     private func convertToGroupModel(_ userGroup: UserGroup) -> GroupModel {
         return GroupModel(
             id: UUID(), // Generate a new UUID for UI purposes
+            backendId: userGroup.id,
             name: userGroup.name,
             lastUpload: "No uploads yet", // Placeholder - would come from actual uploads
             previewImages: [] // Placeholder - would come from actual uploads

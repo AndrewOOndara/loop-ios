@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 
 struct GroupDetailView: View {
     let group: GroupModel
@@ -91,6 +93,7 @@ struct GroupDetailView: View {
 #Preview {
     let sampleGroup = GroupModel(
         id: UUID(),
+        backendId: 1,
         name: "jones 2025",
         lastUpload: "Last upload by Sarah Luan on 7/30/2025 at 11:10 AM",
         previewImages: ["photo1", "photo2", "photo3", "photo4"]
@@ -139,7 +142,7 @@ private struct MediaTile: View {
 private extension GroupDetailView {
     func loadMedia() async {
         do {
-            mediaItems = try await groupService.fetchGroupMedia(groupId: group.id)
+            mediaItems = try await groupService.fetchGroupMedia(groupId: group.backendId)
         } catch {
             print("[GroupDetailView] Failed to load media: \(error)")
         }
@@ -153,17 +156,14 @@ private extension GroupDetailView {
         for item in items {
             do {
                 if let data = try await item.loadTransferable(type: Data.self) {
-                    // Determine type via uniform type identifiers
-                    let supportsVideo = (try? await item.loadTransferable(type: Movie.self)) != nil
-                    // Fallback using content type from item
-                    let suggestedType = item.supportedContentTypes.first?.preferredFilenameExtension ?? "jpg"
-                    let lower = suggestedType.lowercased()
-                    let mediaType: GroupMediaType = (lower == "mp4" || lower == "mov") || supportsVideo ? .video : .image
-                    let ext = lower
+                    // Determine type via content types / extensions
+                    let utType = item.supportedContentTypes.first
+                    let ext = utType?.preferredFilenameExtension?.lowercased() ?? "jpg"
+                    let mediaType: GroupMediaType = (utType?.conforms(to: .movie) == true || ext == "mp4" || ext == "mov") ? .video : .image
                     
                     // For videos we could generate thumbnail client-side later. For now omit.
                     let uploaded = try await groupService.uploadMedia(
-                        groupId: group.id,
+                        groupId: group.backendId,
                         userId: currentUser.id,
                         data: data,
                         fileExtension: ext,
