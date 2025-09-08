@@ -95,4 +95,31 @@ struct GroupJoinRequest {
     let userId: UUID
 }
 
+// MARK: - Group Media
+
+enum GroupMediaType: String, Codable {
+    case image
+    case video
+}
+
+struct GroupMedia: Codable, Identifiable, Hashable {
+    let id: Int
+    let groupId: Int
+    let userId: UUID
+    let storagePath: String
+    let mediaType: GroupMediaType
+    let thumbnailPath: String?
+    let createdAt: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case groupId = "group_id"
+        case userId = "user_id"
+        case storagePath = "storage_path"
+        case mediaType = "media_type"
+        case thumbnailPath = "thumbnail_path"
+        case createdAt = "created_at"
+    }
+}
+
 

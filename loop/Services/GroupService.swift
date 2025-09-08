@@ -384,3 +384,113 @@ enum GroupServiceError: LocalizedError {
         }
     }
 }
+
+// MARK: - Group Media API
+
+extension GroupService {
+    /// Upload media (image or video) to storage and record in `group_media` table
+    func uploadMedia(
+        groupId: Int,
+        userId: UUID,
+        data: Data,
+        fileExtension: String,
+        mediaType: GroupMediaType,
+        thumbnailData: Data? = nil
+    ) async throws -> GroupMedia {
+        // Build paths
+        let filename = "\(UUID().uuidString).\(fileExtension)"
+        let storagePath = "groups/\(groupId)/\(filename)"
+        var thumbPath: String? = nil
+        
+        // Upload primary media
+        try await supabase.storage
+            .from("media")
+            .upload(
+                storagePath,
+                data: data,
+                options: FileOptions(contentType: contentType(for: fileExtension))
+            )
+        
+        // Upload thumbnail if provided
+        if let thumbnailData {
+            let thumbName = "thumb_\(UUID().uuidString).jpeg"
+            let thumbStoragePath = "groups/\(groupId)/\(thumbName)"
+            try await supabase.storage
+                .from("media")
+                .upload(
+                    thumbStoragePath,
+                    data: thumbnailData,
+                    options: FileOptions(contentType: "image/jpeg")
+                )
+            thumbPath = thumbStoragePath
+        }
+        
+        // Insert DB row
+        struct InsertableGroupMedia: Codable {
+            let groupId: Int
+            let userId: String
+            let storagePath: String
+            let mediaType: String
+            let thumbnailPath: String?
+            
+            enum CodingKeys: String, CodingKey {
+                case groupId = "group_id"
+                case userId = "user_id"
+                case storagePath = "storage_path"
+                case mediaType = "media_type"
+                case thumbnailPath = "thumbnail_path"
+            }
+        }
+        
+        let row = InsertableGroupMedia(
+            groupId: groupId,
+            userId: userId.uuidString,
+            storagePath: storagePath,
+            mediaType: mediaType.rawValue,
+            thumbnailPath: thumbPath
+        )
+        
+        let inserted: [GroupMedia] = try await supabase
+            .from("group_media")
+            .insert(row)
+            .select()
+            .execute()
+            .value
+        
+        guard let media = inserted.first else {
+            throw GroupServiceError.createFailed
+        }
+        return media
+    }
+    
+    /// Fetch recent media for a group
+    func fetchGroupMedia(groupId: Int, limit: Int = 50) async throws -> [GroupMedia] {
+        let media: [GroupMedia] = try await supabase
+            .from("group_media")
+            .select()
+            .eq("group_id", value: groupId)
+            .order("created_at", ascending: false)
+            .limit(limit)
+            .execute()
+            .value
+        return media
+    }
+    
+    /// Get a public URL for a path from storage bucket `media`
+    func getPublicURL(for path: String) throws -> URL? {
+        try supabase.storage
+            .from("media")
+            .getPublicURL(path: path)
+    }
+    
+    private func contentType(for fileExtension: String) -> String {
+        switch fileExtension.lowercased() {
+        case "jpg", "jpeg": return "image/jpeg"
+        case "png": return "image/png"
+        case "gif": return "image/gif"
+        case "mp4": return "video/mp4"
+        case "mov": return "video/quicktime"
+        default: return "application/octet-stream"
+        }
+    }
+}
