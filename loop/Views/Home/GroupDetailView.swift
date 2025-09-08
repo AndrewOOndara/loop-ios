@@ -72,16 +72,38 @@ struct GroupDetailView: View {
                 
                 // Collage grid
                 ScrollView(.vertical, showsIndicators: false) {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: BrandSpacing.sm),
-                        GridItem(.flexible(), spacing: BrandSpacing.sm)
-                    ], spacing: BrandSpacing.sm) {
-                        ForEach(mediaItems, id: \.id) { item in
-                            MediaTile(item: item)
+                    if mediaItems.isEmpty {
+                        VStack {
+                            Spacer(minLength: 60)
+                            VStack(spacing: BrandSpacing.md) {
+                                Image(systemName: "photo.on.rectangle")
+                                    .font(.system(size: 36, weight: .regular))
+                                    .foregroundColor(BrandColor.lightBrown)
+                                Text("No uploads yet")
+                                    .font(BrandFont.headline)
+                                    .foregroundColor(BrandColor.black)
+                                Text("Be the first to add a memory to this group.")
+                                    .font(BrandFont.body)
+                                    .foregroundColor(BrandColor.lightBrown)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding(.horizontal, BrandSpacing.lg)
+                            Spacer(minLength: 120)
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 100)
+                    } else {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: BrandSpacing.sm),
+                            GridItem(.flexible(), spacing: BrandSpacing.sm)
+                        ], spacing: BrandSpacing.sm) {
+                            ForEach(mediaItems, id: \.id) { item in
+                                MediaTile(item: item)
+                            }
+                        }
+                        .padding(.horizontal, BrandSpacing.lg)
+                        .padding(.bottom, 100) // Space for navigation bar
                     }
-                    .padding(.horizontal, BrandSpacing.lg)
-                    .padding(.bottom, 100) // Space for navigation bar
                 }
             }
         }
@@ -108,33 +130,55 @@ private struct MediaTile: View {
     private let service = GroupService()
     
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack {
+            // Image
             AsyncImage(url: try? service.getPublicURL(for: item.thumbnailPath ?? item.storagePath)) { phase in
                 switch phase {
                 case .empty:
-                    Rectangle().fill(BrandColor.systemGray5)
+                    Color(UIColor.systemGray5)
                 case .success(let image):
                     image
                         .resizable()
                         .scaledToFill()
                 case .failure:
-                    Rectangle().fill(BrandColor.systemGray5)
+                    Color(UIColor.systemGray5)
                 @unknown default:
-                    Rectangle().fill(BrandColor.systemGray5)
+                    Color(UIColor.systemGray5)
                 }
             }
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
+            .clipped()
+
+            // Gradient overlay for readability
+            LinearGradient(
+                colors: [Color.black.opacity(0.0), Color.black.opacity(0.15)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
             .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
-            
+
+            // Video badge
             if item.mediaType == .video {
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 24))
+                Image(systemName: "play.fill")
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.white)
-                    .shadow(radius: 2)
                     .padding(8)
+                    .background(Color.black.opacity(0.35))
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.5), lineWidth: 0.5))
+                    .padding(8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
         }
+        .background(BrandColor.systemGray6)
+        .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                .stroke(BrandColor.systemGray6, lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 1)
     }
 }
 
