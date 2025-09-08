@@ -214,10 +214,13 @@ struct HomeView: View {
         Task {
             do {
                 let userGroups = try await groupService.getUserGroups(userId: currentUser.id)
+                var models = userGroups.map { convertToGroupModel($0) }
+                // Fetch latest 4 media previews per group
+                try await fetchPreviews(for: &models)
                 await MainActor.run {
-                    self.groups = userGroups.map { convertToGroupModel($0) }
+                    self.groups = models
                     self.isLoading = false
-                    print("[HomeView] Loaded \(userGroups.count) groups")
+                    print("[HomeView] Loaded \(userGroups.count) groups with previews")
                 }
             } catch {
                 await MainActor.run {
@@ -235,8 +238,30 @@ struct HomeView: View {
             backendId: userGroup.id,
             name: userGroup.name,
             lastUpload: "No uploads yet", // Placeholder - would come from actual uploads
-            previewImages: [] // Placeholder - would come from actual uploads
+            previewImages: [] // Will be filled by fetchPreviews
         )
+    }
+    
+    private func fetchPreviews(for models: inout [GroupModel]) async throws {
+        // Fetch previews concurrently
+        try await withThrowingTaskGroup(of: (Int, [String]).self) { group in
+            for (index, model) in models.enumerated() {
+                group.addTask {
+                    let media = try await groupService.fetchGroupMedia(groupId: model.backendId, limit: 4)
+                    let paths = media.map { $0.thumbnailPath ?? $0.storagePath }
+                    return (index, paths)
+                }
+            }
+            for try await (index, paths) in group {
+                models[index] = GroupModel(
+                    id: models[index].id,
+                    backendId: models[index].backendId,
+                    name: models[index].name,
+                    lastUpload: models[index].lastUpload,
+                    previewImages: paths
+                )
+            }
+        }
     }
 }
 

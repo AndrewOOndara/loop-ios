@@ -13,6 +13,7 @@ struct GroupCard: View {
     var onGroupTap: () -> Void
     var onMenuTap: () -> Void
     @State private var isPressed: Bool = false
+    private let groupService = GroupService()
     
     var body: some View {
         VStack(alignment: .leading, spacing: BrandSpacing.md) {
@@ -62,16 +63,37 @@ struct GroupCard: View {
                 columns: Array(repeating: GridItem(.flexible(), spacing: BrandSpacing.sm), count: 2),
                 spacing: BrandSpacing.sm
             ) {
-                ForEach(group.previewImages.prefix(4), id: \.self) { imageName in
-                    Rectangle()
-                        .fill(BrandColor.systemGray5) // Placeholder color for now
+                ForEach(0..<4, id: \.self) { index in
+                    if index < group.previewImages.count, let url = try? groupService.getPublicURL(for: group.previewImages[index]) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .empty:
+                                Color(UIColor.systemGray5)
+                            case .success(let image):
+                                image.resizable().scaledToFill()
+                            case .failure:
+                                Color(UIColor.systemGray5)
+                            @unknown default:
+                                Color(UIColor.systemGray5)
+                            }
+                        }
                         .aspectRatio(1, contentMode: .fit)
+                        .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
                         .overlay(
-                            // Optional: Add a subtle border
                             RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
                                 .stroke(BrandColor.systemGray6, lineWidth: 0.5)
                         )
+                    } else {
+                        Rectangle()
+                            .fill(BrandColor.systemGray5)
+                            .aspectRatio(1, contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                                    .stroke(BrandColor.systemGray6, lineWidth: 0.5)
+                            )
+                    }
                 }
             }
         }
@@ -86,7 +108,7 @@ struct GroupCard: View {
         backendId: 1,
         name: "jones 2025",
         lastUpload: "Last upload by Sarah Luan on 7/30/2025 at 11:10 AM",
-        previewImages: ["photo1", "photo2", "photo3", "photo4"]
+        previewImages: []
     )
     
     return GroupCard(
