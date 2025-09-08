@@ -12,8 +12,15 @@ struct ProfileSettingsView: View {
     @State private var localName = ""
     @State private var localBio = ""
     @State private var isLoading = false
+    @State private var nameError: String?
     @StateObject private var authManager = AuthManager.shared
     @Environment(\.dismiss) private var dismiss
+    
+    @FocusState private var focusedField: Field?
+    
+    enum Field {
+        case name, bio
+    }
     
     var body: some View {
         NavigationStack {
@@ -22,9 +29,11 @@ struct ProfileSettingsView: View {
                     // Header
                     HStack {
                         Button("Cancel") {
+                            print("Cancel button tapped")
                             dismiss()
                         }
                         .foregroundColor(.primary)
+                        .buttonStyle(.plain)
                         
                         Spacer()
                         
@@ -35,9 +44,11 @@ struct ProfileSettingsView: View {
                         Spacer()
                         
                         Button("Save") {
+                            print("Save button tapped")
                             saveProfile()
                         }
                         .foregroundColor(BrandColor.orange)
+                        .buttonStyle(.plain)
                         .disabled(isLoading)
                     }
                     .padding(.horizontal, BrandSpacing.lg)
@@ -45,15 +56,11 @@ struct ProfileSettingsView: View {
                     
                     // Profile Image Section
                     VStack(spacing: BrandSpacing.md) {
-                        PhotosPicker(selection: $imageSelection, matching: .images) {
+                        PhotosPicker(selection: $imageSelection, matching: .images, photoLibrary: .shared()) {
                             ZStack {
                                 Circle()
-                                    .fill(BrandColor.cream)
+                                    .fill(BrandColor.white)
                                     .frame(width: 120, height: 120)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(BrandColor.lightBrown, lineWidth: 2)
-                                    )
                                 
                                 if let avatarImage {
                                     avatarImage.image
@@ -76,7 +83,7 @@ struct ProfileSettingsView: View {
                                             .font(.system(size: 16))
                                             .foregroundColor(.white)
                                             .frame(width: 32, height: 32)
-                                            .background(Color.black.opacity(0.7))
+                                            .background(BrandColor.orange)
                                             .clipShape(Circle())
                                             .offset(x: -8, y: -8)
                                     }
@@ -89,54 +96,87 @@ struct ProfileSettingsView: View {
                     
                     // Edit Profile Section
                     VStack(alignment: .leading, spacing: BrandSpacing.lg) {
-                        Text("Edit profile")
+                        Text("Edit Profile")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(.primary)
                             .padding(.horizontal, BrandSpacing.lg)
                         
                         VStack(spacing: BrandSpacing.lg) {
-                            // Name Field
-                            VStack(alignment: .leading, spacing: BrandSpacing.sm) {
+                            // Name Field - Underlined style like profile setup
+                            VStack(alignment: .leading, spacing: BrandSpacing.xs) {
                                 HStack {
                                     Text("Name")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(.primary)
+                                        .font(BrandFont.caption1)
+                                        .foregroundColor(BrandColor.lightBrown)
+                                    
+                                    Text("*")
+                                        .font(BrandFont.caption1)
+                                        .foregroundColor(BrandColor.orange)
+ 
                                     Spacer()
                                 }
-                                .padding(.horizontal, BrandSpacing.lg)
-                                
-                                Rectangle()
-                                    .fill(BrandColor.lightBrown.opacity(0.3))
-                                    .frame(height: 1)
-                                    .padding(.horizontal, BrandSpacing.lg)
                                 
                                 TextField("", text: $localName)
-                                    .font(.system(size: 16))
-                                    .textFieldStyle(PlainTextFieldStyle())
-                                    .padding(.horizontal, BrandSpacing.lg)
-                            }
-                            
-                            // Bio Field
-                            VStack(alignment: .leading, spacing: BrandSpacing.sm) {
-                                HStack {
-                                    Text("Bio")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                }
-                                .padding(.horizontal, BrandSpacing.lg)
+                                    .focused($focusedField, equals: .name)
+                                    .foregroundColor(BrandColor.black)
+                                    .font(BrandFont.body)
+                                    .padding(.vertical, BrandSpacing.sm)
+                                    .textContentType(.name)
+                                    .autocapitalization(.words)
+                                    .onChange(of: localName) { oldValue, newValue in
+                                        if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                            nameError = "You must have a name"
+                                        } else {
+                                            nameError = nil
+                                        }
+                                    }
                                 
                                 Rectangle()
-                                    .fill(BrandColor.lightBrown.opacity(0.3))
+                                    .fill(nameError != nil ? BrandColor.error : (focusedField == .name ? BrandColor.orange : BrandColor.lightBrown))
                                     .frame(height: 1)
-                                    .padding(.horizontal, BrandSpacing.lg)
+                                    .animation(.easeInOut(duration: 0.2), value: focusedField == .name)
+                                
+                                if let nameError {
+                                    Text(nameError)
+                                        .font(BrandFont.caption2)
+                                        .foregroundColor(BrandColor.error)
+                                        .padding(.top, BrandSpacing.xs)
+                                }
+                            }
+                            .padding(.horizontal, BrandSpacing.lg)
+                            
+                            // Bio Field - Underlined style
+                            VStack(alignment: .leading, spacing: BrandSpacing.xs) {
+                                HStack {
+                                    Text("Bio")
+                                        .font(BrandFont.caption1)
+                                        .foregroundColor(BrandColor.lightBrown)
+                                    
+                                    Spacer()
+                                    
+                                    Text("\(localBio.count)/80")
+                                        .font(BrandFont.caption2)
+                                        .foregroundColor(localBio.count > 80 ? BrandColor.error : BrandColor.lightBrown)
+                                }
                                 
                                 TextField("", text: $localBio, axis: .vertical)
-                                    .font(.system(size: 16))
-                                    .textFieldStyle(PlainTextFieldStyle())
-                                    .lineLimit(3...6)
-                                    .padding(.horizontal, BrandSpacing.lg)
+                                    .focused($focusedField, equals: .bio)
+                                    .foregroundColor(BrandColor.black)
+                                    .font(BrandFont.body)
+                                    .padding(.vertical, BrandSpacing.sm)
+                                    .lineLimit(2...4)
+                                    .onChange(of: localBio) { oldValue, newValue in
+                                        if newValue.count > 80 {
+                                            localBio = String(newValue.prefix(80))
+                                        }
+                                    }
+                                
+                                Rectangle()
+                                    .fill(focusedField == .bio ? BrandColor.orange : BrandColor.lightBrown)
+                                    .frame(height: 1)
+                                    .animation(.easeInOut(duration: 0.2), value: focusedField == .bio)
                             }
+                            .padding(.horizontal, BrandSpacing.lg)
                         }
                     }
                     
@@ -187,17 +227,42 @@ struct ProfileSettingsView: View {
             localName = username
             localBio = bio
         }
+        .onChange(of: imageSelection) { _, newValue in
+            print("Image selection changed: \(newValue != nil)")
+            guard let newValue else { return }
+            loadTransferable(from: newValue)
+        }
+        .onTapGesture {
+            focusedField = nil
+        }
     }
     
     // MARK: - Actions
     private func saveProfile() {
+        print("saveProfile() called")
+        
+        // Validate name before saving
+        if localName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            print("Name validation failed")
+            nameError = "You must have a name"
+            return
+        }
+        
+        print("Name validation passed, starting save process")
+        
         Task {
             isLoading = true
             defer { isLoading = false }
             
+            guard let currentUser = supabase.auth.currentUser else {
+                print("No authenticated user found")
+                return
+            }
+            
+            print("User authenticated, proceeding with save")
+            
             do {
                 let imageURL = try await uploadImage()
-                let currentUser = try await supabase.auth.session.user
                 
                 // Parse name into first and last name
                 let nameComponents = localName.components(separatedBy: " ")
@@ -222,13 +287,20 @@ struct ProfileSettingsView: View {
                     .eq("id", value: currentUser.id)
                     .execute()
                 
-                // Update parent view bindings
-                username = localName
-                bio = localBio
+                print("Profile saved successfully to database")
                 
-                dismiss()
+                await MainActor.run {
+                    print("Updating parent view and dismissing popup")
+                    // Update parent view bindings
+                    username = localName
+                    bio = localBio
+                    print("About to dismiss popup")
+                    dismiss()
+                    print("Dismiss called")
+                }
             } catch {
-                debugPrint("Error saving profile: \(error)")
+                print("Error saving profile: \(error)")
+                print("Save failed, popup will remain open")
             }
         }
     }
@@ -260,6 +332,18 @@ struct ProfileSettingsView: View {
     private func deleteAccount() {
         // TODO: Implement account deletion with confirmation
         print("Delete account tapped")
+    }
+    
+    private func loadTransferable(from imageSelection: PhotosPickerItem) {
+        Task {
+            do {
+                print("Loading image from PhotosPicker")
+                avatarImage = try await imageSelection.loadTransferable(type: AvatarImage.self)
+                print("Image loaded successfully")
+            } catch {
+                print("Error loading image: \(error)")
+            }
+        }
     }
 }
 

@@ -25,7 +25,7 @@ struct Profile: Codable, Identifiable {
         case lastName = "last_name"
         case username
         case profileBio = "profile_bio"
-        case avatarURL = "avatar_url"
+        case avatarURL = "profile_pic"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
