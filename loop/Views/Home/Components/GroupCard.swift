@@ -65,40 +65,49 @@ struct GroupCard: View {
             ) {
                 ForEach(0..<4, id: \.self) { index in
                     if index < group.previewImages.count, let url = try? groupService.getPublicURL(for: group.previewImages[index]) {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .empty:
-                                Color(UIColor.systemGray5)
-                            case .success(let image):
-                                image.resizable().scaledToFill()
-                            case .failure:
-                                Color(UIColor.systemGray5)
-                            @unknown default:
-                                Color(UIColor.systemGray5)
-                            }
-                        }
-                        .aspectRatio(1, contentMode: .fit)
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
-                                .stroke(BrandColor.systemGray6, lineWidth: 0.5)
-                        )
+                        PreviewTile(url: url)
                     } else {
-                        Rectangle()
-                            .fill(BrandColor.systemGray5)
-                            .aspectRatio(1, contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
-                                    .stroke(BrandColor.systemGray6, lineWidth: 0.5)
-                            )
+                        PreviewTile(url: nil)
                     }
                 }
             }
         }
         .padding(BrandSpacing.md)
         .cardStyle() // Apply card styling from our design system
+    }
+}
+
+private struct PreviewTile: View {
+    let url: URL?
+    
+    var body: some View {
+        ZStack {
+            // Persistent placeholder to avoid height collapse
+            Rectangle()
+                .fill(BrandColor.systemGray5)
+            
+            if let url {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        Color.clear
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .failure:
+                        Color.clear
+                    @unknown default:
+                        Color.clear
+                    }
+                }
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                .stroke(BrandColor.systemGray6, lineWidth: 0.5)
+        )
     }
 }
 
