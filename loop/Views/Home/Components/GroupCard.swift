@@ -53,10 +53,18 @@ struct GroupCard: View {
                 .buttonStyle(.plain)
             }
             
-            // Last Upload Info
-            Text(group.lastUpload)
-                .font(BrandFont.footnote)
-                .foregroundColor(BrandColor.systemGray)
+            // Subtitle: show lastUpload if provided; otherwise show empty-state only when no previews
+            Group {
+                if !group.lastUpload.isEmpty {
+                    Text(group.lastUpload)
+                        .font(BrandFont.footnote)
+                        .foregroundColor(BrandColor.systemGray)
+                } else if group.previewImages.isEmpty {
+                    Text("No uploads yet")
+                        .font(BrandFont.footnote)
+                        .foregroundColor(BrandColor.systemGray)
+                }
+            }
             
             // Preview Images Grid (2x2)
             LazyVGrid(
@@ -85,6 +93,7 @@ private struct PreviewTile: View {
             // Persistent placeholder to avoid height collapse
             Rectangle()
                 .fill(BrandColor.systemGray5)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             if let url {
                 AsyncImage(url: url) { phase in
@@ -92,7 +101,11 @@ private struct PreviewTile: View {
                     case .empty:
                         Color.clear
                     case .success(let image):
-                        image.resizable().scaledToFill()
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .clipped()
                     case .failure:
                         Color.clear
                     @unknown default:
@@ -116,7 +129,7 @@ private struct PreviewTile: View {
         id: UUID(),
         backendId: 1,
         name: "jones 2025",
-        lastUpload: "Last upload by Sarah Luan on 7/30/2025 at 11:10 AM",
+        lastUpload: "",
         previewImages: []
     )
     
