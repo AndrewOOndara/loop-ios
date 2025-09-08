@@ -11,12 +11,7 @@ import SwiftUI
 struct loopApp: App {
     var body: some Scene {
         WindowGroup {
-                    AuthFlowView()
-                        .onOpenURL { url in
-                            Task {
-                                try await supabase.auth.session(from: url)
-                            }
-                        }
-                }
+            MainContentView()
+        }
     }
 }

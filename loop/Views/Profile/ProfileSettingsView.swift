@@ -13,7 +13,7 @@ struct ProfileSettingsView: View {
     @State private var localBio = ""
     @State private var isLoading = false
     @State private var nameError: String?
-    @StateObject private var authManager = AuthManager.shared
+    @ObservedObject private var authManager = AuthManager.shared
     @Environment(\.dismiss) private var dismiss
     
     @FocusState private var focusedField: Field?
@@ -185,37 +185,34 @@ struct ProfileSettingsView: View {
                     // Action Buttons
                     VStack(spacing: BrandSpacing.md) {
                         // Log Out Button
-                        Button {
+                        Button(action: {
+                            print("🔴 LOG OUT BUTTON TAPPED - This should always print")
                             logOut()
-                        } label: {
-                            if isLoading {
-                                ProgressView()
-                                    .tint(.white)
-                            } else {
-                                Text("Log Out")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
+                        }) {
+                            Text("Log Out")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color.black)
+                                .cornerRadius(25)
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Color.black)
-                        .cornerRadius(25)
-                        .disabled(isLoading)
+                        .buttonStyle(.plain)
                         
                         // Delete Account Button
                         Button {
+                            print("🔴 DELETE ACCOUNT BUTTON TAPPED - Testing if buttons work")
                             deleteAccount()
                         } label: {
                             Text("Delete Account")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color.black)
+                                .cornerRadius(25)
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Color.black)
-                        .cornerRadius(25)
-                        .disabled(isLoading)
+                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, BrandSpacing.lg)
                     .padding(.bottom, BrandSpacing.xl)
@@ -232,9 +229,11 @@ struct ProfileSettingsView: View {
             guard let newValue else { return }
             loadTransferable(from: newValue)
         }
-        .onTapGesture {
-            focusedField = nil
-        }
+        .simultaneousGesture(
+            TapGesture().onEnded { _ in
+                focusedField = nil
+            }
+        )
     }
     
     // MARK: - Actions
@@ -322,10 +321,24 @@ struct ProfileSettingsView: View {
     }
     
     private func logOut() {
+        print("🔵 logOut() function called")
+        print("🔵 Current authentication state: \(authManager.isAuthenticated)")
+        
         Task {
+            print("🔵 Setting isLoading = true")
             isLoading = true
+            
+            print("🔵 About to call authManager.signOut()")
             await authManager.signOut()
-            dismiss()
+            
+            print("🔵 authManager.signOut() completed")
+            print("🔵 New authentication state: \(authManager.isAuthenticated)")
+            
+            await MainActor.run {
+                print("🔵 About to dismiss settings popup")
+                dismiss()
+                print("🔵 Dismiss called")
+            }
         }
     }
     

@@ -20,6 +20,14 @@ struct MainContentView: View {
                 AuthFlowView()
             }
         }
+        .animation(.easeInOut(duration: 0.4), value: authManager.isAuthenticated)
+        .onChange(of: authManager.isAuthenticated) { oldValue, newValue in
+            print("🟢 MainContentView: Auth state changed to: \(newValue)")
+            print("🟢 MainContentView: Should show: \(newValue ? "HomeView" : "AuthFlowView")")
+        }
+        .onAppear {
+            print("🟢 MainContentView appeared - Auth state: \(authManager.isAuthenticated)")
+        }
         .onAppear {
             authManager.startAuthStateListener()
         }

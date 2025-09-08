@@ -7,7 +7,7 @@ struct ProfileMainView: View {
     @State var username = "Sarah Luan"
     @State var joinedDate = "joined May 2025"
     @State var bio = ""
-    @StateObject private var authManager = AuthManager.shared
+    @ObservedObject private var authManager = AuthManager.shared
     @State private var showingSettings = false
     
     @State var imageSelection: PhotosPickerItem?
@@ -163,6 +163,12 @@ struct ProfileMainView: View {
         .onAppear {
             Task {
                 await getInitialProfile()
+            }
+        }
+        .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
+            print("🟡 ProfileMainView: Auth state changed to: \(isAuthenticated)")
+            if !isAuthenticated {
+                print("🟡 User is no longer authenticated, should redirect to login")
             }
         }
         .onChange(of: imageSelection) { _, newValue in
