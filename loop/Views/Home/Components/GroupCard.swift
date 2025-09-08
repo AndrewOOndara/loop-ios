@@ -89,38 +89,43 @@ private struct PreviewTile: View {
     let url: URL?
     
     var body: some View {
-        ZStack {
-            // Persistent placeholder to avoid height collapse
-            Rectangle()
-                .fill(BrandColor.systemGray5)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            
-            if let url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .empty:
-                        Color.clear
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .clipped()
-                    case .failure:
-                        Color.clear
-                    @unknown default:
-                        Color.clear
+        GeometryReader { proxy in
+            let size = proxy.size.width
+            ZStack {
+                // Persistent placeholder to avoid height collapse
+                Rectangle()
+                    .fill(BrandColor.systemGray5)
+                    .frame(width: size, height: size)
+                
+                if let url {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            Color.clear
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: size, height: size)
+                                .clipped()
+                        case .failure:
+                            Color.clear
+                        @unknown default:
+                            Color.clear
+                        }
                     }
+                    .transaction { t in t.animation = nil } // prevent implicit layout animations
                 }
             }
+            .frame(width: size, height: size)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                    .stroke(BrandColor.systemGray6, lineWidth: 0.5)
+            )
         }
-        .aspectRatio(1, contentMode: .fit)
-        .clipped()
-        .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
-                .stroke(BrandColor.systemGray6, lineWidth: 0.5)
-        )
+        .frame(height: 0) // GeometryReader takes all height; collapse and control with inner frame
     }
 }
 
