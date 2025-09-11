@@ -7,12 +7,50 @@ struct GroupCard: View {
     var onMenuTap: () -> Void
     @State private var isPressed: Bool = false
     @State private var userNames: [UUID: String] = [:] // Cache for user names
+    @State private var currentMemberCount: Int = 0
     private let groupService = GroupService()
     
     var body: some View {
         VStack(alignment: .leading, spacing: BrandSpacing.md) {
             // Group Header
             HStack {
+                // Group Profile Photo
+                if let avatarURL = group.avatarURL, let url = try? groupService.getPublicURL(for: avatarURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView()
+                                .frame(width: 40, height: 40)
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        case .failure:
+                            // Fallback to default group icon
+                            Image(systemName: "person.2.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .foregroundColor(BrandColor.orange)
+                                .padding(BrandSpacing.sm)
+                                .background(BrandColor.cream)
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
+                } else {
+                    // Default group icon when no avatar
+                    Image(systemName: "person.2.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                        .foregroundColor(BrandColor.orange)
+                        .padding(BrandSpacing.sm)
+                        .background(BrandColor.cream)
+                        .clipShape(Circle())
+                }
+                
                 // Group Name with Arrow
                 Button {
                     // Temporary highlight then navigate
@@ -47,8 +85,9 @@ struct GroupCard: View {
                 .buttonStyle(.plain)
             }
             
-            // Subtitle: show last upload info or empty state
-            Group {
+            // Subtitle: show last upload info and member count
+            HStack {
+                // Last upload info
                 if let lastMedia = mediaItems.first {
                     Text(formatLastUpload(lastMedia))
                         .font(BrandFont.footnote)
@@ -58,6 +97,13 @@ struct GroupCard: View {
                         .font(BrandFont.footnote)
                         .foregroundColor(BrandColor.systemGray)
                 }
+                
+                Spacer()
+                
+                // Member count
+                Text("\(currentMemberCount) members")
+                    .font(BrandFont.footnote)
+                    .foregroundColor(BrandColor.systemGray)
             }
             
             // Preview Images Grid (2x2) - Always show 4 squares
@@ -81,6 +127,7 @@ struct GroupCard: View {
         .cardStyle() // Apply card styling from our design system
         .onAppear {
             loadUserNames()
+            loadMemberCount()
         }
     }
     
@@ -136,6 +183,23 @@ struct GroupCard: View {
                             userNames[userId] = "Unknown User"
                         }
                     }
+                }
+            }
+        }
+    }
+    
+    // Load current member count for the group
+    private func loadMemberCount() {
+        Task {
+            do {
+                let count = try await groupService.getMemberCount(groupId: group.id)
+                await MainActor.run {
+                    currentMemberCount = count
+                }
+            } catch {
+                print("[GroupCard] Failed to load member count for group \(group.name): \(error)")
+                await MainActor.run {
+                    currentMemberCount = 0
                 }
             }
         }
