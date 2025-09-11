@@ -206,11 +206,28 @@ struct VerificationView: View {
         
         do {
             // Verify OTP with Supabase
+            #if DEBUG
+            print("🔐 Attempting OTP verification for phone: \(phone)")
+            print("🔐 Using code: \(codeString)")
+            #endif
             try await supabase.auth.verifyOTP(phone: phone, token: codeString, type: .sms)
             
             #if DEBUG
             print("✅ OTP verification successful for phone: \(phone)")
+            print("🔍 Checking if AuthManager needs manual update...")
             #endif
+            
+            // Manual check to ensure AuthManager is updated
+            if let currentUser = supabase.auth.currentUser {
+                print("🔄 Manual AuthManager update - User found: \(currentUser.phone ?? "Unknown")")
+                await MainActor.run {
+                    AuthManager.shared.currentUser = currentUser
+                    AuthManager.shared.isAuthenticated = true
+                    print("🔄 Manual update: AuthManager.isAuthenticated set to TRUE")
+                }
+            } else {
+                print("⚠️ No current user found after successful OTP verification")
+            }
             
             // Check if user already has a profile
             await checkExistingProfile()
@@ -233,11 +250,13 @@ struct VerificationView: View {
             
             DispatchQueue.main.async {
                 if existingProfile != nil {
-                    // User already has a profile - skip profile setup and go to home
+                    // User already has a profile - auth state should handle navigation automatically
                     #if DEBUG
-                    print("🏠 Existing user - navigating to home")
+                    print("🏠 Existing user detected - waiting for auth state to trigger MainContentView transition")
+                    print("🔍 Current auth state: \(supabase.auth.currentUser != nil ? "AUTHENTICATED" : "NOT_AUTHENTICATED")")
                     #endif
-                    onExistingUser?()
+                    // Don't call onExistingUser - let auth state change handle the transition
+                    // onExistingUser?()
                 } else {
                     // New user - proceed to profile setup
                     #if DEBUG

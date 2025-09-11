@@ -42,11 +42,18 @@ struct AuthFlowView: View {
                             path.append(.profileSetup)
                         },
                         onExistingUser: {
-                            path.append(.home)
+                            // Don't navigate - let auth state change handle transition
+                            print("🏠 AuthFlowView: onExistingUser called - should wait for auth state change")
+                            print("🔍 Current navigation path: \(path)")
                         },
                         onBack: {
+                            print("🔙 Back button tapped from verification screen")
+                            print("🔍 Current path before removal: \(path)")
                             if !path.isEmpty {
                                 path.removeLast()
+                                print("🔍 Path after removal: \(path)")
+                            } else {
+                                print("⚠️ Path is empty, cannot remove")
                             }
                         }
                     )
@@ -54,13 +61,17 @@ struct AuthFlowView: View {
                 case .profileSetup:
                     ProfileSetupView(
                         onComplete: {
-                            path.append(.home)
+                            // Don't navigate - let auth state change handle transition
+                            print("✅ Profile setup completed - waiting for auth state change")
                         }
                     )
                     .navigationBarBackButtonHidden(true)
                 case .home:
-                    HomeView(navigationPath: $path)
-                        .navigationBarBackButtonHidden(true)
+                    // This should never happen - MainContentView handles showing HomeView
+                    Text("Redirecting...")
+                        .onAppear {
+                            print("⚠️ AuthFlowView .home case triggered - this shouldn't happen")
+                        }
                 case .groupDetail(let group):
                     GroupDetailView(group: group)
                         .navigationBarBackButtonHidden(true)

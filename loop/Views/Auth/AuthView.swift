@@ -121,6 +121,9 @@ struct AuthView: View {
         defer { isLoading = false }
 
         do {
+            #if DEBUG
+            print("📞 Sending OTP to phone: \(formattedPhone)")
+            #endif
             try await supabase.auth.signInWithOTP(phone: formattedPhone)
             onSubmit?(formattedPhone)
         } catch {
