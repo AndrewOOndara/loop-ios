@@ -149,7 +149,9 @@ struct NotificationView: View {
                 }
                 
                 // Bottom Navigation Bar (same as Home)
-                NavigationBar(selectedTab: .constant(.home))
+                NavigationBar(selectedTab: .constant(.home), onUploadTap: {
+                    print("Upload tapped from notifications")
+                })
             }
         }
         .navigationBarHidden(true)

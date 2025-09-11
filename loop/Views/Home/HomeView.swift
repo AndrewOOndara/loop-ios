@@ -5,6 +5,11 @@ struct HomeView: View {
     @ObservedObject private var authManager = AuthManager.shared
     @State private var selectedTab: NavigationBar.Tab = .home
     @State private var showingGroupOptions = false
+    @State private var showingUploadOptions = false
+    @State private var showingGroupSelection = false
+    @State private var showingPhotoUpload = false
+    @State private var selectedGroupForUpload: UserGroup?
+    @State private var selectedMediaType: GroupMediaType = .image
     @State private var groups: [GroupModel] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -110,21 +115,6 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure ScrollView takes available space
                         }
                     
-                    case .upload:
-                        // Upload content placeholder
-                        VStack {
-                            Spacer()
-                            Text("Upload")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(.primary)
-                            Text("Upload functionality coming soon")
-                                .font(.system(size: 16))
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(BrandColor.white.ignoresSafeArea())
-                    
                     case .profile:
                         ProfileMainView()
                     }
@@ -134,7 +124,9 @@ struct HomeView: View {
             // Bottom Navigation Bar - Fixed to bottom
             VStack {
                 Spacer()
-                NavigationBar(selectedTab: $selectedTab)
+                NavigationBar(selectedTab: $selectedTab, onUploadTap: {
+                    showingUploadOptions = true
+                })
                     .background(
                         BrandColor.white
                             .ignoresSafeArea(.container, edges: .bottom) // Extend white background to bottom edge
@@ -163,6 +155,71 @@ struct HomeView: View {
                     navigateToCreateGroup()
                 }
             )
+        }
+        .sheet(isPresented: $showingUploadOptions) {
+            UploadOptionsView(
+                onDismiss: {
+                    showingUploadOptions = false
+                },
+                onPhotoTap: {
+                    showingUploadOptions = false
+                    selectedMediaType = .image
+                    showingGroupSelection = true
+                },
+                onVideoTap: {
+                    showingUploadOptions = false
+                    selectedMediaType = .video
+                    showingGroupSelection = true
+                },
+                onAudioTap: {
+                    showingUploadOptions = false
+                    selectedMediaType = .audio
+                    showingGroupSelection = true
+                },
+                onMusicTap: {
+                    showingUploadOptions = false
+                    selectedMediaType = .music
+                    showingGroupSelection = true
+                }
+            )
+        }
+        .sheet(isPresented: $showingGroupSelection) {
+            GroupSelectionView(
+                onBack: {
+                    showingGroupSelection = false
+                },
+                onNext: { selectedGroup in
+                    print("🎯 Group selected: \(selectedGroup.name)")
+                    selectedGroupForUpload = selectedGroup
+                    print("🎯 selectedGroupForUpload set to: \(selectedGroup.name)")
+                    showingGroupSelection = false
+                    // Show photo upload immediately after group selection dismisses
+                    print("🎯 About to set showingPhotoUpload = true")
+                    print("🎯 selectedGroupForUpload before sheet: \(selectedGroupForUpload?.name ?? "nil")")
+                    showingPhotoUpload = true
+                    print("🎯 showingPhotoUpload set to true immediately")
+                }
+            )
+        }
+        .sheet(isPresented: $showingPhotoUpload) {
+            if let group = selectedGroupForUpload {
+                DebugUploadView(
+                    selectedGroup: group,
+                    mediaType: selectedMediaType,
+                    onClose: {
+                        showingPhotoUpload = false
+                    }
+                )
+            } else {
+                VStack {
+                    Text("Error: No group selected")
+                        .foregroundColor(.red)
+                    Button("Close") {
+                        showingPhotoUpload = false
+                    }
+                }
+                .padding()
+            }
         }
     }
     
@@ -199,6 +256,8 @@ struct HomeView: View {
         print("Navigate to create group")
         navigationPath.append(.createGroup)
     }
+    
+    
     
     // MARK: - Data Loading
     private func loadUserGroups() {

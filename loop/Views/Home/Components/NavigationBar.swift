@@ -2,9 +2,10 @@ import SwiftUI
 
 struct NavigationBar: View {
     @Binding var selectedTab: Tab
+    let onUploadTap: () -> Void
     
     enum Tab {
-        case home, upload, profile
+        case home, profile
     }
     
     var body: some View {
@@ -34,7 +35,8 @@ struct NavigationBar: View {
                 
                 // Upload Button (Center)
                 Button {
-                    selectedTab = .upload
+                    HapticManager.impact(.medium)
+                    onUploadTap()
                     print("Upload tapped")
                 } label: {
                     ZStack {
@@ -74,6 +76,8 @@ struct NavigationBar: View {
 
 #Preview {
     @Previewable @State var selectedTab: NavigationBar.Tab = .home
-    return NavigationBar(selectedTab: $selectedTab)
+    return NavigationBar(selectedTab: $selectedTab, onUploadTap: {
+        print("Upload tapped in preview")
+    })
         .background(BrandColor.cream)
 }

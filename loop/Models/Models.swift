@@ -100,6 +100,8 @@ struct GroupJoinRequest {
 enum GroupMediaType: String, Codable {
     case image
     case video
+    case audio
+    case music
 }
 
 struct GroupMedia: Codable, Identifiable, Hashable {
@@ -109,6 +111,7 @@ struct GroupMedia: Codable, Identifiable, Hashable {
     let storagePath: String
     let mediaType: GroupMediaType
     let thumbnailPath: String?
+    let caption: String?
     let createdAt: Date?
     
     enum CodingKeys: String, CodingKey {
@@ -118,6 +121,7 @@ struct GroupMedia: Codable, Identifiable, Hashable {
         case storagePath = "storage_path"
         case mediaType = "media_type"
         case thumbnailPath = "thumbnail_path"
+        case caption
         case createdAt = "created_at"
     }
 }

@@ -10,22 +10,17 @@ import SwiftUI
 struct LoadingView: View {
     var body: some View {
         ZStack {
-            Color.green.ignoresSafeArea()
+            BrandColor.white.ignoresSafeArea()
 
-            VStack(spacing: 24) {
-                Image("AppLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 100, height: 100)
-                    .cornerRadius(20)
+            VStack(spacing: BrandSpacing.lg) {
 
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                    .progressViewStyle(CircularProgressViewStyle(tint: BrandColor.orange))
                     .scaleEffect(1.5)
 
                 Text("Loading...")
-                    .font(.headline)
-                    .foregroundColor(.black)
+                    .font(BrandFont.headline)
+                    .foregroundColor(BrandColor.lightBrown)
             }
         }
     }
