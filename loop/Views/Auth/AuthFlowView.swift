@@ -13,7 +13,7 @@ enum AuthRoute: Hashable {
     case verify(phone: String)
     case profileSetup
     case home
-    case groupDetail(group: GroupModel)
+    case groupDetail(group: UserGroup)
     case notifications
     case joinGroup
     case joinGroupConfirm(group: UserGroup)

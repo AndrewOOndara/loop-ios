@@ -108,6 +108,27 @@ class ProfileService {
             throw error
         }
     }
+    
+    /// Get a profile by user ID
+    func getProfile(userId: UUID) async throws -> Profile {
+        print("🔍 Getting profile for user ID: \(userId)")
+        
+        let response: [Profile] = try await supabase
+            .from("profiles")
+            .select()
+            .eq("id", value: userId.uuidString)
+            .execute()
+            .value
+        
+        guard let profile = response.first else {
+            print("❌ Profile not found for user ID: \(userId)")
+            throw ProfileServiceError.profileNotFound
+        }
+        
+        print("✅ Profile found for user ID: \(userId)")
+        print("   - Name: \(profile.firstName ?? "N/A") \(profile.lastName ?? "N/A")")
+        return profile
+    }
 }
 
 enum ProfileServiceError: Error, LocalizedError {

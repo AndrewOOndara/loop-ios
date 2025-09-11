@@ -10,7 +10,8 @@ struct HomeView: View {
     @State private var showingPhotoUpload = false
     @State private var selectedGroupForUpload: UserGroup?
     @State private var selectedMediaType: GroupMediaType = .image
-    @State private var groups: [GroupModel] = []
+    @State private var groups: [UserGroup] = []
+    @State private var groupMedia: [Int: [GroupMedia]] = [:] // Group ID -> Media items
     @State private var isLoading = true
     @State private var errorMessage: String?
     
@@ -93,6 +94,7 @@ struct HomeView: View {
                                         ForEach(groups) { group in
                                             GroupCard(
                                                 group: group,
+                                                mediaItems: groupMedia[group.id] ?? [], // Pass media for this group
                                                 onGroupTap: {
                                                     navigateToGroup(group)
                                                 },
@@ -229,12 +231,12 @@ struct HomeView: View {
         navigationPath.append(.notifications)
     }
     
-    private func navigateToGroup(_ group: GroupModel) {
+    private func navigateToGroup(_ group: UserGroup) {
         print("Navigate to group: \(group.name)")
         navigationPath.append(.groupDetail(group: group))
     }
     
-    private func showGroupMenu(_ group: GroupModel) {
+    private func showGroupMenu(_ group: UserGroup) {
         print("Show menu for group: \(group.name)")
         // TODO: Implement group action menu
     }
@@ -273,13 +275,24 @@ struct HomeView: View {
         Task {
             do {
                 let userGroups = try await groupService.getUserGroups(userId: currentUser.id)
-                var models = userGroups.map { convertToGroupModel($0) }
-                // Fetch latest 4 media previews per group
-                try await fetchPreviews(for: &models)
+                
+                // Load media for each group
+                var mediaDict: [Int: [GroupMedia]] = [:]
+                for group in userGroups {
+                    do {
+                        let media = try await groupService.fetchGroupMedia(groupId: group.id, limit: 4)
+                        mediaDict[group.id] = media
+                    } catch {
+                        print("[HomeView] Error loading media for group \(group.name): \(error)")
+                        mediaDict[group.id] = [] // Empty array if no media
+                    }
+                }
+                
                 await MainActor.run {
-                    self.groups = models
+                    self.groups = userGroups
+                    self.groupMedia = mediaDict
                     self.isLoading = false
-                    print("[HomeView] Loaded \(userGroups.count) groups with previews")
+                    print("[HomeView] Loaded \(userGroups.count) groups with media")
                 }
             } catch {
                 await MainActor.run {
@@ -291,37 +304,6 @@ struct HomeView: View {
         }
     }
     
-    private func convertToGroupModel(_ userGroup: UserGroup) -> GroupModel {
-        return GroupModel(
-            id: UUID(), // Generate a new UUID for UI purposes
-            backendId: userGroup.id,
-            name: userGroup.name,
-            lastUpload: "No uploads yet", // Placeholder - would come from actual uploads
-            previewImages: [] // Will be filled by fetchPreviews
-        )
-    }
-    
-    private func fetchPreviews(for models: inout [GroupModel]) async throws {
-        // Fetch previews concurrently
-        try await withThrowingTaskGroup(of: (Int, [String]).self) { group in
-            for (index, model) in models.enumerated() {
-                group.addTask {
-                    let media = try await groupService.fetchGroupMedia(groupId: model.backendId, limit: 4)
-                    let paths = media.map { $0.thumbnailPath ?? $0.storagePath }
-                    return (index, paths)
-                }
-            }
-            for try await (index, paths) in group {
-                models[index] = GroupModel(
-                    id: models[index].id,
-                    backendId: models[index].backendId,
-                    name: models[index].name,
-                    lastUpload: models[index].lastUpload,
-                    previewImages: paths
-                )
-            }
-        }
-    }
 }
 
 #Preview {

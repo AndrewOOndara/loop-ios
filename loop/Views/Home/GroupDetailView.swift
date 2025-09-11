@@ -3,7 +3,7 @@ import PhotosUI
 import UniformTypeIdentifiers
 
 struct GroupDetailView: View {
-    let group: GroupModel
+    let group: UserGroup
     @Environment(\.dismiss) private var dismiss
     @State private var mediaItems: [GroupMedia] = []
     @State private var isUploading: Bool = false
@@ -62,7 +62,7 @@ struct GroupDetailView: View {
                             .foregroundColor(BrandColor.orange)
                     }
                     
-                    Text(group.lastUpload)
+                    Text("Group Details")
                         .font(BrandFont.footnote)
                         .foregroundColor(BrandColor.systemGray)
                 }
@@ -113,15 +113,19 @@ struct GroupDetailView: View {
 }
 
 #Preview {
-    let sampleGroup = GroupModel(
-        id: UUID(),
-        backendId: 1,
+    let sampleGroup = UserGroup(
+        id: 1,
         name: "jones 2025",
-        lastUpload: "Last upload by Sarah Luan on 7/30/2025 at 11:10 AM",
-        previewImages: ["photo1", "photo2", "photo3", "photo4"]
+        groupCode: "ABC123",
+        avatarURL: nil,
+        createdBy: UUID(),
+        createdAt: Date(),
+        updatedAt: Date(),
+        isActive: true,
+        maxMembers: 10
     )
     
-    return GroupDetailView(group: sampleGroup)
+    GroupDetailView(group: sampleGroup)
 }
 
 // MARK: - Media Tile
@@ -186,7 +190,7 @@ private struct MediaTile: View {
 private extension GroupDetailView {
     func loadMedia() async {
         do {
-            mediaItems = try await groupService.fetchGroupMedia(groupId: group.backendId)
+            mediaItems = try await groupService.fetchGroupMedia(groupId: group.id)
         } catch {
             print("[GroupDetailView] Failed to load media: \(error)")
         }
@@ -207,7 +211,7 @@ private extension GroupDetailView {
                     
                     // For videos we could generate thumbnail client-side later. For now omit.
                     let uploaded = try await groupService.uploadMedia(
-                        groupId: group.backendId,
+                        groupId: group.id,
                         userId: currentUser.id,
                         data: data,
                         fileExtension: ext,
