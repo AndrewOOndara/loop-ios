@@ -1,13 +1,14 @@
 import SwiftUI
 
 struct GroupCard: View {
-    let group: UserGroup
+    @Binding var group: UserGroup
     let mediaItems: [GroupMedia] // Recent media items for this group
     var onGroupTap: () -> Void
     var onMenuTap: () -> Void
     @State private var isPressed: Bool = false
     @State private var userNames: [UUID: String] = [:] // Cache for user names
     @State private var currentMemberCount: Int = 0
+    @State private var showingDropdownMenu: Bool = false
     private let groupService = GroupService()
     
     var body: some View {
@@ -75,11 +76,13 @@ struct GroupCard: View {
                 
                 // Three Dots Menu
                 Button {
-                    onMenuTap()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showingDropdownMenu.toggle()
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 20))
-                        .foregroundColor(BrandColor.systemGray)
+                        .foregroundColor(showingDropdownMenu ? BrandColor.orange : BrandColor.systemGray)
                         .rotationEffect(.degrees(90))
                 }
                 .buttonStyle(.plain)
@@ -125,6 +128,33 @@ struct GroupCard: View {
         }
         .padding(BrandSpacing.md)
         .cardStyle() // Apply card styling from our design system
+        .overlay(alignment: .topTrailing) {
+            if showingDropdownMenu {
+                GroupDropdownMenu(
+                    group: $group,
+                    onDismiss: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showingDropdownMenu = false
+                        }
+                    }
+                )
+                .frame(width: 220)
+                .offset(x: -8, y: 40) // Position it below the three dots
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)),
+                    removal: .opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing))
+                ))
+                .zIndex(1000) // Ensure it appears above other content
+            }
+        }
+        .onTapGesture {
+            // Dismiss dropdown when tapping outside
+            if showingDropdownMenu {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showingDropdownMenu = false
+                }
+            }
+        }
         .onAppear {
             loadUserNames()
             loadMemberCount()
@@ -282,7 +312,7 @@ private struct PreviewTile: View {
     )
     
     return GroupCard(
-        group: sampleGroup,
+        group: .constant(sampleGroup),
         mediaItems: [], // Empty for preview
         onGroupTap: { print("Group tapped: \(sampleGroup.name)") },
         onMenuTap: { print("Menu tapped for: \(sampleGroup.name)") }
