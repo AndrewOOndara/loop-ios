@@ -9,6 +9,7 @@ struct GroupCard: View {
     @State private var userNames: [UUID: String] = [:] // Cache for user names
     @State private var currentMemberCount: Int = 0
     @State private var showingDropdownMenu: Bool = false
+    @State private var showingMemberList: Bool = false
     private let groupService = GroupService()
     
     var body: some View {
@@ -123,6 +124,10 @@ struct GroupCard: View {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             showingDropdownMenu = false
                         }
+                    },
+                    onShowMemberList: {
+                        print("🔍 GroupCard: Showing member list...")
+                        showingMemberList = true
                     }
                 )
                 .frame(width: 220)
@@ -145,6 +150,17 @@ struct GroupCard: View {
         .onAppear {
             loadUserNames()
             loadMemberCount()
+        }
+        .sheet(isPresented: $showingMemberList) {
+            GroupMemberListView(group: group)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .onAppear {
+                    print("🎯 Member list sheet appeared from GroupCard!")
+                }
+                .onDisappear {
+                    print("🎯 Member list sheet disappeared from GroupCard!")
+                }
         }
     }
     

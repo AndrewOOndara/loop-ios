@@ -8,8 +8,8 @@ extension Notification.Name {
 struct GroupDropdownMenu: View {
     @Binding var group: UserGroup
     let onDismiss: () -> Void
+    let onShowMemberList: () -> Void
     @State private var showingEditProfile = false
-    @State private var showingMemberList = false
     @State private var showingShareCode = false
     @State private var showingLeaveConfirmation = false
     
@@ -35,9 +35,10 @@ struct GroupDropdownMenu: View {
                 icon: "person.2.fill",
                 title: "Member list",
                 action: {
+                    print("🔍 Member list tapped, calling callback...")
                     onDismiss()
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        showingMemberList = true
+                        onShowMemberList()
                     }
                 }
             )
@@ -94,14 +95,6 @@ struct GroupDropdownMenu: View {
             .onDisappear {
                 print("🎯 Edit profile sheet disappeared!")
             }
-        }
-        .sheet(isPresented: $showingMemberList) {
-            // TODO: Implement member list view
-            Text("Member List Coming Soon")
-                .font(BrandFont.body)
-                .foregroundColor(BrandColor.systemGray)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(BrandColor.cream)
         }
         .sheet(isPresented: $showingShareCode) {
             ShareCodeView(group: group)
@@ -255,7 +248,7 @@ private struct ShareCodeView: View {
         maxMembers: 10
     )
     
-    return GroupDropdownMenu(group: .constant(sampleGroup), onDismiss: {})
+    return GroupDropdownMenu(group: .constant(sampleGroup), onDismiss: {}, onShowMemberList: {})
         .padding()
         .background(BrandColor.cream)
 }
@@ -510,6 +503,213 @@ struct ImagePicker: UIViewControllerRepresentable {
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.dismiss()
+        }
+    }
+}
+
+struct GroupMemberListView: View {
+    let group: UserGroup
+    @State private var members: [GroupMemberWithProfile] = []
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    private let groupService = GroupService()
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                if isLoading {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                            .tint(.orange)
+                        Text("Loading members...")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let errorMessage = errorMessage {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 40))
+                            .foregroundColor(.orange)
+                        Text("Unable to load members")
+                            .font(.headline)
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(members) { member in
+                                MemberRow(member: member)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                    }
+                }
+            }
+            .background(Color(.systemBackground))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 2) {
+                        Text("Members")
+                            .font(.system(size: 18, weight: .semibold))
+                        Text("\(members.count) member\(members.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            loadMembers()
+        }
+    }
+    
+    private func loadMembers() {
+        print("🔄 Loading members for group: \(group.name) (ID: \(group.id))")
+        isLoading = true
+        errorMessage = nil
+        
+        Task {
+            do {
+                let groupMembers = try await groupService.getGroupMembers(groupId: group.id)
+                
+                await MainActor.run {
+                    self.members = groupMembers
+                    self.isLoading = false
+                    print("✅ Loaded \(groupMembers.count) members for group: \(group.name)")
+                    
+                    // Debug member details
+                    for member in groupMembers {
+                        print("   - Member: \(member.profiles.firstName ?? "Unknown") (Role: \(member.role), Avatar: \(member.profiles.avatarURL ?? "none"))")
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = error.localizedDescription
+                    self.isLoading = false
+                    print("❌ Error loading members: \(error)")
+                    print("   Error details: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+}
+
+struct MemberRow: View {
+    let member: GroupMemberWithProfile
+    private let groupService = GroupService()
+    
+    var displayName: String {
+        if let firstName = member.profiles.firstName, !firstName.isEmpty {
+            if let lastName = member.profiles.lastName, !lastName.isEmpty {
+                return "\(firstName) \(lastName)"
+            }
+            return firstName
+        } else if let username = member.profiles.username, !username.isEmpty {
+            return username
+        } else {
+            return "Unknown User"
+        }
+    }
+    
+    var roleDisplay: String {
+        return member.role.capitalized
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Profile Photo
+            AsyncImage(url: getProfileImageURL(from: member.profiles.avatarURL)) { image in
+                image
+                    .resizable()
+                    .scaledToFill()
+            } placeholder: {
+                Circle()
+                    .fill(BrandColor.cream)
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(BrandColor.orange)
+                    )
+            }
+            .frame(width: 50, height: 50)
+            .clipShape(Circle())
+            
+            // Member Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(displayName)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.primary)
+                
+                HStack(spacing: 8) {
+                    Text(roleDisplay)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            member.role == "admin" ? Color.orange.opacity(0.2) : Color.gray.opacity(0.2)
+                        )
+                        .foregroundColor(
+                            member.role == "admin" ? .orange : .secondary
+                        )
+                        .clipShape(Capsule())
+                    
+                    if let joinedAt = member.joinedAt {
+                        Text("Joined \(formatJoinDate(joinedAt))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.systemGray5), lineWidth: 1)
+        )
+    }
+    
+    private func getProfileImageURL(from avatarURL: String?) -> URL? {
+        guard let avatarURL = avatarURL, !avatarURL.isEmpty else {
+            return nil
+        }
+        
+        // Try to get the public URL using GroupService
+        do {
+            return try groupService.getPublicURL(for: avatarURL)
+        } catch {
+            print("❌ Error getting public URL for avatar: \(error)")
+            return nil
+        }
+    }
+    
+    private func formatJoinDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+        
+        if calendar.isDateInToday(date) {
+            return "today"
+        } else if calendar.isDateInYesterday(date) {
+            return "yesterday"
+        } else if calendar.dateInterval(of: .weekOfYear, for: Date())?.contains(date) == true {
+            formatter.dateFormat = "EEEE"
+            return formatter.string(from: date).lowercased()
+        } else {
+            formatter.dateStyle = .short
+            return formatter.string(from: date)
         }
     }
 }
