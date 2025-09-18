@@ -1,5 +1,10 @@
 import SwiftUI
 
+// MARK: - Notification Names
+extension Notification.Name {
+    static let groupProfileUpdated = Notification.Name("groupProfileUpdated")
+}
+
 struct GroupDropdownMenu: View {
     @Binding var group: UserGroup
     let onDismiss: () -> Void
@@ -261,6 +266,9 @@ struct EditProfileWorkingView: View {
     @State private var groupName: String = ""
     @State private var showingImagePicker = false
     @State private var selectedImage: UIImage?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    private let groupService = GroupService()
     
     var body: some View {
         NavigationView {
@@ -360,6 +368,14 @@ struct EditProfileWorkingView: View {
                     }
                     .padding(.horizontal, 20)
                     
+                    // Error message display
+                    if let errorMessage = errorMessage {
+                        Text(errorMessage)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                            .padding(.horizontal, 20)
+                    }
+                    
                     Spacer(minLength: 50)
                 }
             }
@@ -380,11 +396,11 @@ struct EditProfileWorkingView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
+                    Button(isLoading ? "Saving..." : "Save") {
                         saveChanges()
                     }
                     .foregroundColor(.orange)
-                    .disabled(groupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(groupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                 }
             }
         }
@@ -398,26 +414,63 @@ struct EditProfileWorkingView: View {
     
     private func saveChanges() {
         let trimmedName = groupName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedName.isEmpty {
-            // TODO: Upload selectedImage to storage and get URL
-            let newAvatarURL = selectedImage != nil ? "updated_image_url" : group.avatarURL
+        guard !trimmedName.isEmpty else { return }
+        
+        Task {
+            await MainActor.run {
+                isLoading = true
+                errorMessage = nil
+            }
             
-            // Create updated group with new name and potentially new avatar
-            let updatedGroup = UserGroup(
-                id: group.id,
-                name: trimmedName,
-                groupCode: group.groupCode,
-                avatarURL: newAvatarURL,
-                createdBy: group.createdBy,
-                createdAt: group.createdAt,
-                updatedAt: Date(),
-                isActive: group.isActive,
-                maxMembers: group.maxMembers
-            )
-            group = updatedGroup
-            print("🎯 Group profile updated - Name: \(group.name), Image: \(selectedImage != nil ? "Updated" : "No change")")
+            do {
+                // Convert selected image to data if needed
+                var imageData: Data? = nil
+                if let selectedImage = selectedImage {
+                    imageData = selectedImage.jpegData(compressionQuality: 0.8)
+                }
+                
+                // Update group profile in backend
+                let newAvatarURL = try await groupService.updateGroupProfile(
+                    groupId: group.id,
+                    newName: trimmedName,
+                    avatarImageData: imageData
+                )
+                
+                // Update local group object with new data
+                await MainActor.run {
+                    let updatedGroup = UserGroup(
+                        id: group.id,
+                        name: trimmedName,
+                        groupCode: group.groupCode,
+                        avatarURL: newAvatarURL ?? group.avatarURL,
+                        createdBy: group.createdBy,
+                        createdAt: group.createdAt,
+                        updatedAt: Date(),
+                        isActive: group.isActive,
+                        maxMembers: group.maxMembers
+                    )
+                    group = updatedGroup
+                    isLoading = false
+                    
+                    print("🎯 ✅ Group profile updated successfully!")
+                    print("   - Name: \(group.name)")
+                    print("   - Avatar URL: \(group.avatarURL ?? "none")")
+                    print("   - Image uploaded: \(selectedImage != nil)")
+                    
+                    // Notify HomeView to refresh the groups list
+                    NotificationCenter.default.post(name: .groupProfileUpdated, object: nil)
+                    
+                    onDismiss()
+                }
+                
+            } catch {
+                await MainActor.run {
+                    isLoading = false
+                    errorMessage = "Failed to update group: \(error.localizedDescription)"
+                    print("❌ Error updating group profile: \(error)")
+                }
+            }
         }
-        onDismiss()
     }
 }
 

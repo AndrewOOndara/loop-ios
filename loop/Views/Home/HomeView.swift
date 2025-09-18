@@ -141,6 +141,11 @@ struct HomeView: View {
                 loadUserGroups()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .groupProfileUpdated)) { _ in
+            // Refresh groups when a group profile is updated
+            print("🔄 Group profile updated notification received, refreshing groups...")
+            loadUserGroups()
+        }
         .onChange(of: selectedTab) { _, newTab in
             if newTab == .home && groups.isEmpty {
                 loadUserGroups()

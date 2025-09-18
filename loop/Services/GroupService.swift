@@ -388,6 +388,73 @@ enum GroupServiceError: LocalizedError {
 // MARK: - Group Media API
 
 extension GroupService {
+    // MARK: - Group Profile Updates
+    
+    /// Update group name in the backend
+    func updateGroupName(groupId: Int, newName: String) async throws {
+        print("[GroupService] Updating group \(groupId) name to: '\(newName)'")
+        
+        try await supabase
+            .from("groups")
+            .update([
+                "name": newName,
+                "updated_at": Date().toISOString()
+            ])
+            .eq("id", value: groupId)
+            .execute()
+        
+        print("[GroupService] ✅ Group name updated successfully")
+    }
+    
+    /// Upload group avatar image and update group's avatar_url
+    func updateGroupAvatar(groupId: Int, imageData: Data) async throws -> String {
+        print("[GroupService] Uploading avatar for group \(groupId)")
+        
+        // Create unique filename for avatar
+        let filename = "avatar_\(UUID().uuidString).jpeg"
+        let storagePath = "groups/\(groupId)/\(filename)"
+        
+        // Upload image to storage
+        try await supabase.storage
+            .from("media")
+            .upload(
+                storagePath,
+                data: imageData,
+                options: FileOptions(contentType: "image/jpeg")
+            )
+        
+        // Update group's avatar_url in database
+        try await supabase
+            .from("groups")
+            .update([
+                "avatar_url": storagePath,
+                "updated_at": Date().toISOString()
+            ])
+            .eq("id", value: groupId)
+            .execute()
+        
+        print("[GroupService] ✅ Group avatar updated successfully")
+        return storagePath
+    }
+    
+    /// Update both group name and avatar (if provided)
+    func updateGroupProfile(groupId: Int, newName: String, avatarImageData: Data? = nil) async throws -> String? {
+        print("[GroupService] Updating group \(groupId) profile - Name: '\(newName)', Avatar: \(avatarImageData != nil ? "Yes" : "No")")
+        
+        var avatarURL: String? = nil
+        
+        // Upload avatar if provided
+        if let imageData = avatarImageData {
+            avatarURL = try await updateGroupAvatar(groupId: groupId, imageData: imageData)
+        }
+        
+        // Update name (this will also update updated_at)
+        try await updateGroupName(groupId: groupId, newName: newName)
+        
+        print("[GroupService] ✅ Group profile updated successfully")
+        return avatarURL
+    }
+    
     /// Upload media (image or video) to storage and record in `group_media` table
     func uploadMedia(
         groupId: Int,
@@ -492,5 +559,14 @@ extension GroupService {
         case "mov": return "video/quicktime"
         default: return "application/octet-stream"
         }
+    }
+}
+
+// MARK: - Date Extension
+extension Date {
+    func toISOString() -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: self)
     }
 }
