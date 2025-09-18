@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 import PhotosUI
 import UniformTypeIdentifiers
 
@@ -135,22 +136,12 @@ private struct MediaTile: View {
     
     var body: some View {
         ZStack {
-            // Image
-            AsyncImage(url: try? service.getPublicURL(for: item.thumbnailPath ?? item.storagePath)) { phase in
-                switch phase {
-                case .empty:
-                    Color(UIColor.systemGray5)
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                case .failure:
-                    Color(UIColor.systemGray5)
-                @unknown default:
+            KFImage(try? service.getPublicURL(for: item.thumbnailPath ?? item.storagePath))
+                .placeholder {
                     Color(UIColor.systemGray5)
                 }
-            }
-            .frame(maxWidth: .infinity)
+                .resizable()
+                .scaledToFill()            .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
             .clipped()
 
