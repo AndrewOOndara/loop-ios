@@ -200,11 +200,21 @@ struct HomeView: View {
                     selectedGroupForUpload = selectedGroup
                     print("🎯 selectedGroupForUpload set to: \(selectedGroup.name)")
                     showingGroupSelection = false
-                    // Show photo upload immediately after group selection dismisses
-                    print("🎯 About to set showingPhotoUpload = true")
-                    print("🎯 selectedGroupForUpload before sheet: \(selectedGroupForUpload?.name ?? "nil")")
-                    showingPhotoUpload = true
-                    print("🎯 showingPhotoUpload set to true immediately")
+                    
+                    // Use DispatchQueue to ensure the group selection sheet is fully dismissed
+                    // before showing the photo upload sheet
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        print("🎯 About to set showingPhotoUpload = true")
+                        print("🎯 selectedGroupForUpload before sheet: \(selectedGroupForUpload?.name ?? "nil")")
+                        
+                        // Double-check the group is still there before showing the sheet
+                        if selectedGroupForUpload != nil {
+                            showingPhotoUpload = true
+                            print("🎯 showingPhotoUpload set to true")
+                        } else {
+                            print("🚨 ERROR: selectedGroupForUpload became nil before showing upload sheet!")
+                        }
+                    }
                 }
             )
         }
@@ -215,17 +225,25 @@ struct HomeView: View {
                     mediaType: selectedMediaType,
                     onClose: {
                         showingPhotoUpload = false
+                        selectedGroupForUpload = nil // Reset after upload
                     }
                 )
             } else {
                 VStack {
                     Text("Error: No group selected")
                         .foregroundColor(.red)
+                    Text("selectedGroupForUpload is nil")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                     Button("Close") {
                         showingPhotoUpload = false
                     }
                 }
                 .padding()
+                .onAppear {
+                    print("🚨 ERROR: Photo upload sheet appeared but selectedGroupForUpload is nil!")
+                    print("🚨 showingPhotoUpload: \(showingPhotoUpload)")
+                }
             }
         }
     }
