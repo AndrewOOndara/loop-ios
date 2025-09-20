@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 struct GroupCard: View {
     @Binding var group: UserGroup
@@ -23,6 +24,9 @@ struct GroupCard: View {
                             Image(systemName: "person.2.fill")
                                 .foregroundColor(BrandColor.orange)
                         }
+                        .cacheMemoryOnly(false) // Enable disk caching
+                        .fade(duration: 0.1) // Quick fade for better UX
+                        .loadDiskFileSynchronously() // Load from disk cache synchronously
                         .resizable()
                         .scaledToFill()
                         .frame(width: 32, height: 32)
@@ -259,6 +263,9 @@ private struct PreviewTile: View {
                                 Image(systemName: "photo")
                                     .foregroundColor(BrandColor.systemGray3)
                             }
+                            .cacheMemoryOnly(false) // Enable disk caching
+                            .fade(duration: 0.1) // Quick fade for better UX
+                            .loadDiskFileSynchronously() // Load from disk cache synchronously
                             .resizable()
                             .scaledToFill()
                             .frame(width: size, height: size)

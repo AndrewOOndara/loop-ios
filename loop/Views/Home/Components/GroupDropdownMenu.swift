@@ -1,4 +1,5 @@
 import SwiftUI
+import Kingfisher
 
 // MARK: - Notification Names
 extension Notification.Name {
@@ -282,21 +283,23 @@ struct EditProfileWorkingView: View {
                                     .clipShape(Circle())
                             } else if let avatarURL = group.avatarURL, !avatarURL.isEmpty {
                                 // Show existing group avatar
-                                AsyncImage(url: URL(string: avatarURL)) { image in
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    Circle()
-                                        .fill(BrandColor.cream)
-                                        .overlay(
-                                            Image(systemName: "person.2.fill")
-                                                .font(.system(size: 30))
-                                                .foregroundColor(BrandColor.orange)
-                                        )
-                                }
-                                .frame(width: 120, height: 120)
-                                .clipShape(Circle())
+                                KFImage(URL(string: avatarURL))
+                                    .placeholder {
+                                        Circle()
+                                            .fill(BrandColor.cream)
+                                            .overlay(
+                                                Image(systemName: "person.2.fill")
+                                                    .font(.system(size: 30))
+                                                    .foregroundColor(BrandColor.orange)
+                                            )
+                                    }
+                                    .cacheMemoryOnly(false) // Enable disk caching
+                                    .fade(duration: 0.1) // Quick fade for better UX
+                                    .loadDiskFileSynchronously() // Load from disk cache synchronously
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 120, height: 120)
+                                    .clipShape(Circle())
                             } else {
                                 // Show default group icon (same as GroupCard)
                                 Circle()
@@ -627,21 +630,23 @@ struct MemberRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // Profile Photo
-            AsyncImage(url: getProfileImageURL(from: member.profiles.avatarURL)) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                Circle()
-                    .fill(BrandColor.cream)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(BrandColor.orange)
-                    )
-            }
-            .frame(width: 50, height: 50)
-            .clipShape(Circle())
+            KFImage(getProfileImageURL(from: member.profiles.avatarURL))
+                .placeholder {
+                    Circle()
+                        .fill(BrandColor.cream)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(BrandColor.orange)
+                        )
+                }
+                .cacheMemoryOnly(false) // Enable disk caching
+                .fade(duration: 0.1) // Quick fade for better UX
+                .loadDiskFileSynchronously() // Load from disk cache synchronously
+                .resizable()
+                .scaledToFill()
+                .frame(width: 50, height: 50)
+                .clipShape(Circle())
             
             // Member Info
             VStack(alignment: .leading, spacing: 4) {
