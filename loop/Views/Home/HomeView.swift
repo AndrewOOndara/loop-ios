@@ -7,10 +7,11 @@ struct HomeView: View {
     @State private var showingGroupOptions = false
     @State private var showingUploadOptions = false
     @State private var uploadFlowState: UploadFlowState = .none
+    @State private var selectedMediaType: GroupMediaType = .image
     
     enum UploadFlowState: Equatable {
         case none
-        case groupSelection
+        case groupSelection(mediaType: GroupMediaType)
         case photoUpload(group: UserGroup, mediaType: GroupMediaType)
     }
     @State private var groups: [UserGroup] = []
@@ -173,19 +174,19 @@ struct HomeView: View {
                 },
                 onPhotoTap: {
                     showingUploadOptions = false
-                    uploadFlowState = .groupSelection
+                    uploadFlowState = .groupSelection(mediaType: .image)
                 },
                 onVideoTap: {
                     showingUploadOptions = false
-                    uploadFlowState = .groupSelection
+                    uploadFlowState = .groupSelection(mediaType: .video)
                 },
                 onAudioTap: {
                     showingUploadOptions = false
-                    uploadFlowState = .groupSelection
+                    uploadFlowState = .groupSelection(mediaType: .audio)
                 },
                 onMusicTap: {
                     showingUploadOptions = false
-                    uploadFlowState = .groupSelection
+                    uploadFlowState = .groupSelection(mediaType: .music)
                 }
             )
         }
@@ -196,15 +197,15 @@ struct HomeView: View {
             switch uploadFlowState {
             case .none:
                 EmptyView()
-            case .groupSelection:
+            case .groupSelection(let mediaType):
                 GroupSelectionView(
                     onBack: {
                         uploadFlowState = .none
                     },
                     onNext: { selectedGroup in
                         print("🎯 Group selected: \(selectedGroup.name)")
-                        uploadFlowState = .photoUpload(group: selectedGroup, mediaType: .image)
-                        print("🎯 Upload flow state set to photoUpload with group: \(selectedGroup.name)")
+                        uploadFlowState = .photoUpload(group: selectedGroup, mediaType: mediaType)
+                        print("🎯 Upload flow state set to photoUpload with group: \(selectedGroup.name) and mediaType: \(mediaType.rawValue)")
                     }
                 )
             case .photoUpload(let group, let mediaType):
@@ -212,7 +213,11 @@ struct HomeView: View {
                     selectedGroup: group,
                     mediaType: mediaType,
                     onBack: {
-                        uploadFlowState = .groupSelection
+                        if case .groupSelection(let mediaType) = uploadFlowState {
+                            uploadFlowState = .groupSelection(mediaType: mediaType)
+                        } else {
+                            uploadFlowState = .groupSelection(mediaType: .image)
+                        }
                     },
                     onComplete: {
                         uploadFlowState = .none
