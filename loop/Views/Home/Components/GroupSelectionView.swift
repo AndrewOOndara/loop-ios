@@ -106,7 +106,9 @@ struct GroupSelectionView: View {
                                     group: group,
                                     isSelected: selectedGroup == group.id,
                                     onTap: {
+                                        print("🎯 GroupSelectionView: Group tapped: \(group.name) (ID: \(group.id))")
                                         selectedGroup = group.id
+                                        print("🎯 GroupSelectionView: selectedGroup set to: \(selectedGroup ?? -1)")
                                     }
                                 )
                             }
@@ -122,7 +124,12 @@ struct GroupSelectionView: View {
             Button {
                 if let selectedId = selectedGroup,
                    let selected = groups.first(where: { $0.id == selectedId }) {
+                    print("🎯 GroupSelectionView: Calling onNext with group: \(selected.name)")
                     onNext(selected)
+                } else {
+                    print("🚨 GroupSelectionView: No group selected or group not found!")
+                    print("🚨 selectedGroup: \(selectedGroup ?? -1)")
+                    print("🚨 groups count: \(groups.count)")
                 }
             } label: {
                 Text("Next")
