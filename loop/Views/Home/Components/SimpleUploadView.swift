@@ -113,10 +113,8 @@ struct SimpleUploadView: View {
         isUploading = true
         errorMessage = nil
         defer { 
-            await MainActor.run {
-                isUploading = false
-                selectedPHPickerItems = []
-            }
+            isUploading = false
+            selectedPHPickerItems = []
         }
         
         for item in items {
