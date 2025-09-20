@@ -98,10 +98,6 @@ struct SimpleUploadView: View {
     private var uploadButtonBackground: some View {
         RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
             .fill(BrandColor.cream)
-            .overlay(
-                RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
-                    .stroke(BrandColor.orange, lineWidth: 2, lineCap: .round, dash: [8])
-            )
     }
     
     private var errorMessageView: some View {
