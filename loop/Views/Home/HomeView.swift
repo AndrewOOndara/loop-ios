@@ -91,15 +91,15 @@ struct HomeView: View {
                                         Spacer()
                                     } else {
                                         // Groups list
-                                        ForEach(groups) { group in
+                                        ForEach(groups.indices, id: \.self) { index in
                                             GroupCard(
-                                                group: group,
-                                                mediaItems: groupMedia[group.id] ?? [], // Pass media for this group
+                                                group: $groups[index],
+                                                mediaItems: groupMedia[groups[index].id] ?? [], // Pass media for this group
                                                 onGroupTap: {
-                                                    navigateToGroup(group)
+                                                    navigateToGroup(groups[index])
                                                 },
                                                 onMenuTap: {
-                                                    showGroupMenu(group)
+                                                    showGroupMenu(groups[index])
                                                 }
                                             )
                                         }
@@ -140,6 +140,11 @@ struct HomeView: View {
             if selectedTab == .home {
                 loadUserGroups()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .groupProfileUpdated)) { _ in
+            // Refresh groups when a group profile is updated
+            print("🔄 Group profile updated notification received, refreshing groups...")
+            loadUserGroups()
         }
         .onChange(of: selectedTab) { _, newTab in
             if newTab == .home && groups.isEmpty {
@@ -238,7 +243,7 @@ struct HomeView: View {
     
     private func showGroupMenu(_ group: UserGroup) {
         print("Show menu for group: \(group.name)")
-        // TODO: Implement group action menu
+        // Menu is now handled directly in GroupCard with dropdown
     }
     
     private func showGroupOptions() {

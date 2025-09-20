@@ -107,6 +107,73 @@ class GroupService {
         return response.count
     }
     
+    /// Get all members of a group with their profile information
+    func getGroupMembers(groupId: Int) async throws -> [GroupMemberWithProfile] {
+        print("[GroupService] Fetching members for group \(groupId)")
+        
+        do {
+            // First, get the group members
+            let memberResponse: [GroupMember] = try await supabase
+                .from("group_members")
+                .select()
+                .eq("group_id", value: groupId)
+                .eq("is_active", value: true)
+                .order("joined_at", ascending: true)
+                .execute()
+                .value
+            
+            print("[GroupService] Found \(memberResponse.count) members, now fetching profiles...")
+            
+            // Then, fetch profiles for each member
+            var membersWithProfiles: [GroupMemberWithProfile] = []
+            
+            for member in memberResponse {
+                do {
+                    let profile = try await getProfile(userId: member.userId)
+                    
+                    let memberWithProfile = GroupMemberWithProfile(
+                        id: member.id,
+                        groupId: member.groupId,
+                        userId: member.userId,
+                        role: member.role,
+                        joinedAt: member.joinedAt,
+                        isActive: member.isActive,
+                        profiles: profile
+                    )
+                    
+                    membersWithProfiles.append(memberWithProfile)
+                    print("[GroupService] Loaded profile for: \(profile.firstName ?? "Unknown")")
+                } catch {
+                    print("[GroupService] ⚠️ Could not load profile for user \(member.userId): \(error)")
+                    // Continue with other members even if one fails
+                }
+            }
+            
+            print("[GroupService] Successfully loaded \(membersWithProfiles.count) members with profiles")
+            return membersWithProfiles
+            
+        } catch {
+            print("[GroupService] ❌ Error fetching members: \(error)")
+            throw error
+        }
+    }
+    
+    /// Get a user profile by user ID  
+    private func getProfile(userId: UUID) async throws -> Profile {
+        let response: [Profile] = try await supabase
+            .from("profiles")
+            .select()
+            .eq("id", value: userId)
+            .execute()
+            .value
+        
+        guard let profile = response.first else {
+            throw GroupServiceError.userNotFound
+        }
+        
+        return profile
+    }
+    
     /// Join a group (add user to group_members table)
     func joinGroup(groupId: Int, userId: UUID) async throws -> GroupMember {
         print("[GroupService] User \(userId) joining group \(groupId)")
@@ -366,6 +433,7 @@ enum GroupServiceError: LocalizedError {
     case joinFailed
     case createFailed
     case codeGenerationFailed
+    case userNotFound
     
     var errorDescription: String? {
         switch self {
@@ -381,6 +449,8 @@ enum GroupServiceError: LocalizedError {
             return "Failed to create group"
         case .codeGenerationFailed:
             return "Unable to generate unique group code"
+        case .userNotFound:
+            return "User profile not found"
         }
     }
 }
@@ -388,6 +458,73 @@ enum GroupServiceError: LocalizedError {
 // MARK: - Group Media API
 
 extension GroupService {
+    // MARK: - Group Profile Updates
+    
+    /// Update group name in the backend
+    func updateGroupName(groupId: Int, newName: String) async throws {
+        print("[GroupService] Updating group \(groupId) name to: '\(newName)'")
+        
+        try await supabase
+            .from("groups")
+            .update([
+                "name": newName,
+                "updated_at": Date().toISOString()
+            ])
+            .eq("id", value: groupId)
+            .execute()
+        
+        print("[GroupService] ✅ Group name updated successfully")
+    }
+    
+    /// Upload group avatar image and update group's avatar_url
+    func updateGroupAvatar(groupId: Int, imageData: Data) async throws -> String {
+        print("[GroupService] Uploading avatar for group \(groupId)")
+        
+        // Create unique filename for avatar
+        let filename = "avatar_\(UUID().uuidString).jpeg"
+        let storagePath = "groups/\(groupId)/\(filename)"
+        
+        // Upload image to storage
+        try await supabase.storage
+            .from("media")
+            .upload(
+                storagePath,
+                data: imageData,
+                options: FileOptions(contentType: "image/jpeg")
+            )
+        
+        // Update group's avatar_url in database
+        try await supabase
+            .from("groups")
+            .update([
+                "avatar_url": storagePath,
+                "updated_at": Date().toISOString()
+            ])
+            .eq("id", value: groupId)
+            .execute()
+        
+        print("[GroupService] ✅ Group avatar updated successfully")
+        return storagePath
+    }
+    
+    /// Update both group name and avatar (if provided)
+    func updateGroupProfile(groupId: Int, newName: String, avatarImageData: Data? = nil) async throws -> String? {
+        print("[GroupService] Updating group \(groupId) profile - Name: '\(newName)', Avatar: \(avatarImageData != nil ? "Yes" : "No")")
+        
+        var avatarURL: String? = nil
+        
+        // Upload avatar if provided
+        if let imageData = avatarImageData {
+            avatarURL = try await updateGroupAvatar(groupId: groupId, imageData: imageData)
+        }
+        
+        // Update name (this will also update updated_at)
+        try await updateGroupName(groupId: groupId, newName: newName)
+        
+        print("[GroupService] ✅ Group profile updated successfully")
+        return avatarURL
+    }
+    
     /// Upload media (image or video) to storage and record in `group_media` table
     func uploadMedia(
         groupId: Int,
@@ -492,5 +629,14 @@ extension GroupService {
         case "mov": return "video/quicktime"
         default: return "application/octet-stream"
         }
+    }
+}
+
+// MARK: - Date Extension
+extension Date {
+    func toISOString() -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: self)
     }
 }

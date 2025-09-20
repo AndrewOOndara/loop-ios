@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Profile: Codable, Identifiable {
+struct Profile: Codable, Identifiable, Hashable {
     let id: UUID
     let phoneNumber: String
     let firstName: String?
@@ -86,6 +86,27 @@ struct GroupMember: Codable, Identifiable, Hashable {
         case role
         case joinedAt = "joined_at"
         case isActive = "is_active"
+    }
+}
+
+// MARK: - Group Member with Profile
+struct GroupMemberWithProfile: Codable, Identifiable, Hashable {
+    let id: Int
+    let groupId: Int
+    let userId: UUID
+    let role: String
+    let joinedAt: Date?
+    let isActive: Bool
+    let profiles: Profile
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case groupId = "group_id"
+        case userId = "user_id"
+        case role
+        case joinedAt = "joined_at"
+        case isActive = "is_active"
+        case profiles
     }
 }
 
