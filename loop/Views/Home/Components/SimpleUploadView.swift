@@ -15,89 +15,104 @@ struct SimpleUploadView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button {
-                    onBack()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(BrandColor.black)
-                }
-                .buttonStyle(.plain)
-                
-                Spacer()
-                
-                Text("Upload to \(group.name)")
-                    .font(BrandFont.title2)
-                    .foregroundColor(BrandColor.black)
-                
-                Spacer()
-                
-                // Invisible spacer for balance
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .opacity(0)
-            }
-            .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.md)
-            .padding(.bottom, BrandSpacing.lg)
-            
-            VStack(spacing: BrandSpacing.lg) {
-                // Upload Button
-                PhotosPicker(
-                    selection: $selectedPHPickerItems,
-                    matching: mediaType == .image ? .images : .any(of: [.images, .videos]),
-                    photoLibrary: .shared()
-                ) {
-                    VStack(spacing: BrandSpacing.md) {
-                        if isUploading {
-                            ProgressView()
-                                .scaleEffect(1.5)
-                                .tint(BrandColor.orange)
-                        } else {
-                            Image(systemName: mediaType == .image ? "photo" : "video")
-                                .font(.system(size: 48))
-                                .foregroundColor(BrandColor.orange)
-                        }
-                        
-                        Text(isUploading ? "Uploading..." : "Tap to select \(mediaType.rawValue)")
-                            .font(BrandFont.headline)
-                            .foregroundColor(BrandColor.black)
-                        
-                        Text("Upload to \(group.name)")
-                            .font(BrandFont.body)
-                            .foregroundColor(BrandColor.systemGray)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 200)
-                    .background(
-                        RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
-                            .fill(BrandColor.cream)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
-                                    .stroke(BrandColor.orange, lineWidth: 2, lineCap: .round, dash: [8])
-                            )
-                    )
-                }
-                .disabled(isUploading)
-                
-                if let errorMessage = errorMessage {
-                    Text(errorMessage)
-                        .font(BrandFont.caption1)
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal, BrandSpacing.lg)
+            headerView
+            contentView
         }
         .background(BrandColor.white)
         .onChange(of: selectedPHPickerItems) { _, newItems in
             guard !newItems.isEmpty else { return }
             Task { await handlePicked(items: newItems) }
+        }
+    }
+    
+    private var headerView: some View {
+        HStack {
+            Button {
+                onBack()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(BrandColor.black)
+            }
+            .buttonStyle(.plain)
+            
+            Spacer()
+            
+            Text("Upload to \(group.name)")
+                .font(BrandFont.title2)
+                .foregroundColor(BrandColor.black)
+            
+            Spacer()
+            
+            // Invisible spacer for balance
+            Image(systemName: "chevron.left")
+                .font(.system(size: 18, weight: .semibold))
+                .opacity(0)
+        }
+        .padding(.horizontal, BrandSpacing.lg)
+        .padding(.top, BrandSpacing.md)
+        .padding(.bottom, BrandSpacing.lg)
+    }
+    
+    private var contentView: some View {
+        VStack(spacing: BrandSpacing.lg) {
+            uploadButton
+            errorMessageView
+            Spacer()
+        }
+        .padding(.horizontal, BrandSpacing.lg)
+    }
+    
+    private var uploadButton: some View {
+        PhotosPicker(
+            selection: $selectedPHPickerItems,
+            matching: mediaType == .image ? .images : .any(of: [.images, .videos]),
+            photoLibrary: .shared()
+        ) {
+            VStack(spacing: BrandSpacing.md) {
+                if isUploading {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .tint(BrandColor.orange)
+                } else {
+                    Image(systemName: mediaType == .image ? "photo" : "video")
+                        .font(.system(size: 48))
+                        .foregroundColor(BrandColor.orange)
+                }
+                
+                Text(isUploading ? "Uploading..." : "Tap to select \(mediaType.rawValue)")
+                    .font(BrandFont.headline)
+                    .foregroundColor(BrandColor.black)
+                
+                Text("Upload to \(group.name)")
+                    .font(BrandFont.body)
+                    .foregroundColor(BrandColor.systemGray)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 200)
+            .background(uploadButtonBackground)
+        }
+        .disabled(isUploading)
+    }
+    
+    private var uploadButtonBackground: some View {
+        RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+            .fill(BrandColor.cream)
+            .overlay(
+                RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                    .stroke(BrandColor.orange, lineWidth: 2, lineCap: .round, dash: [8])
+            )
+    }
+    
+    private var errorMessageView: some View {
+        Group {
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+                    .font(BrandFont.caption1)
+                    .foregroundColor(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
         }
     }
     
