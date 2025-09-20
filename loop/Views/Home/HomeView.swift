@@ -208,10 +208,13 @@ struct HomeView: View {
                     }
                 )
             case .photoUpload(let group, let mediaType):
-                DebugUploadView(
+                PhotoUploadView(
                     selectedGroup: group,
                     mediaType: mediaType,
-                    onClose: {
+                    onBack: {
+                        uploadFlowState = .groupSelection
+                    },
+                    onComplete: {
                         uploadFlowState = .none
                     }
                 )
