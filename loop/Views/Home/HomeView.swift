@@ -18,6 +18,8 @@ struct HomeView: View {
     @State private var groupMedia: [Int: [GroupMedia]] = [:] // Group ID -> Media items
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var lastLoadTime: Date? = nil
+    private let cacheTimeout: TimeInterval = 30 // 30 seconds cache
     
     private let groupService = GroupService()
     
@@ -142,7 +144,7 @@ struct HomeView: View {
         .navigationBarHidden(true)
         .onAppear {
             if selectedTab == .home {
-                loadUserGroups()
+                loadUserGroupsIfNeeded()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .groupProfileUpdated)) { _ in
@@ -151,8 +153,8 @@ struct HomeView: View {
             loadUserGroups()
         }
         .onChange(of: selectedTab) { _, newTab in
-            if newTab == .home && groups.isEmpty {
-                loadUserGroups()
+            if newTab == .home {
+                loadUserGroupsIfNeeded()
             }
         }
         .sheet(isPresented: $showingGroupOptions) {
@@ -264,6 +266,18 @@ struct HomeView: View {
     
     
     // MARK: - Data Loading
+    private func loadUserGroupsIfNeeded() {
+        // Check if we need to reload based on cache timeout
+        if let lastLoad = lastLoadTime,
+           Date().timeIntervalSince(lastLoad) < cacheTimeout,
+           !groups.isEmpty {
+            print("🚀 Using cached groups data (loaded \(Date().timeIntervalSince(lastLoad))s ago)")
+            return
+        }
+        
+        loadUserGroups()
+    }
+    
     private func loadUserGroups() {
         guard let currentUser = supabase.auth.currentUser else {
             print("[HomeView] No current user")
@@ -278,22 +292,34 @@ struct HomeView: View {
             do {
                 let userGroups = try await groupService.getUserGroups(userId: currentUser.id)
                 
-                // Load media for each group
-                var mediaDict: [Int: [GroupMedia]] = [:]
-                for group in userGroups {
-                    do {
-                        let media = try await groupService.fetchGroupMedia(groupId: group.id, limit: 4)
-                        mediaDict[group.id] = media
-                    } catch {
-                        print("[HomeView] Error loading media for group \(group.name): \(error)")
-                        mediaDict[group.id] = [] // Empty array if no media
+                // Load media for all groups in parallel for better performance
+                let mediaDict = await withTaskGroup(of: (Int, [GroupMedia]).self) { group in
+                    var result: [Int: [GroupMedia]] = [:]
+                    
+                    for userGroup in userGroups {
+                        group.addTask {
+                            do {
+                                let media = try await groupService.fetchGroupMedia(groupId: userGroup.id, limit: 4)
+                                return (userGroup.id, media)
+                            } catch {
+                                print("[HomeView] Error loading media for group \(userGroup.name): \(error)")
+                                return (userGroup.id, []) // Empty array if no media
+                            }
+                        }
                     }
+                    
+                    for await (groupId, media) in group {
+                        result[groupId] = media
+                    }
+                    
+                    return result
                 }
                 
                 await MainActor.run {
                     self.groups = userGroups
                     self.groupMedia = mediaDict
                     self.isLoading = false
+                    self.lastLoadTime = Date() // Update cache timestamp
                     print("[HomeView] Loaded \(userGroups.count) groups with media")
                 }
             } catch {

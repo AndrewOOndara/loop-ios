@@ -10,6 +10,7 @@ struct GroupDetailView: View {
     @State private var isUploading: Bool = false
     @State private var showPicker: Bool = false
     @State private var selectedPHPickerItems: [PhotosPickerItem] = []
+    @State private var isLoadingMedia: Bool = true
     private let groupService = GroupService()
     
     var body: some View {
@@ -73,7 +74,23 @@ struct GroupDetailView: View {
                 
                 // Collage grid
                 ScrollView(.vertical, showsIndicators: false) {
-                    if mediaItems.isEmpty {
+                    if isLoadingMedia {
+                        // Loading skeleton
+                        VStack(spacing: BrandSpacing.md) {
+                            ForEach(0..<4, id: \.self) { _ in
+                                HStack(spacing: BrandSpacing.sm) {
+                                    RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                                        .fill(BrandColor.systemGray5)
+                                        .frame(height: 120)
+                                    RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                                        .fill(BrandColor.systemGray5)
+                                        .frame(height: 120)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, BrandSpacing.lg)
+                        .padding(.bottom, 100)
+                    } else if mediaItems.isEmpty {
                         VStack {
                             Spacer(minLength: 60)
                             VStack(spacing: BrandSpacing.md) {
@@ -184,10 +201,21 @@ private struct MediaTile: View {
 // MARK: - Private helpers
 private extension GroupDetailView {
     func loadMedia() async {
+        await MainActor.run {
+            isLoadingMedia = true
+        }
+        
         do {
-            mediaItems = try await groupService.fetchGroupMedia(groupId: group.id)
+            let media = try await groupService.fetchGroupMedia(groupId: group.id)
+            await MainActor.run {
+                self.mediaItems = media
+                self.isLoadingMedia = false
+            }
         } catch {
             print("[GroupDetailView] Failed to load media: \(error)")
+            await MainActor.run {
+                self.isLoadingMedia = false
+            }
         }
     }
     
