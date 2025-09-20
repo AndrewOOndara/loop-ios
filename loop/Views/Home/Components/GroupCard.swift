@@ -25,7 +25,7 @@ struct GroupCard: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: 32, height: 32)
-                        .clipShape(Circle())                    .clipShape(Circle())
+                        .clipShape(Circle())
                 } else {
                     // Default group icon when no avatar
                     Image(systemName: "person.2.fill")
@@ -209,12 +209,16 @@ private struct PreviewTile: View {
                 if let media = media {
                     // Show actual media preview
                     if let url = try? groupService.getPublicURL(for: media.storagePath) {
-                        // Group avatar
-                    CachedImageView(url: url, systemImage: "person.2.fill")
-                        .frame(width: 32, height: 32)
-                        .clipShape(Circle())
-                        }
-                        .transaction { t in t.animation = nil }
+                        KFImage(url)
+                            .placeholder {
+                                Image(systemName: "photo")
+                                    .foregroundColor(BrandColor.systemGray3)
+                            }
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: size, height: size)
+                            .clipped()
+                            .transaction { t in t.animation = nil }
                     } else {
                         // Show placeholder icon if URL creation fails
                         Image(systemName: "photo")
