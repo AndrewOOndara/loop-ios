@@ -8,7 +8,7 @@ struct HomeView: View {
     @State private var showingUploadOptions = false
     @State private var uploadFlowState: UploadFlowState = .none
     
-    enum UploadFlowState {
+    enum UploadFlowState: Equatable {
         case none
         case groupSelection
         case photoUpload(group: UserGroup, mediaType: GroupMediaType)
