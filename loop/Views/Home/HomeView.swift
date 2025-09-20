@@ -209,8 +209,8 @@ struct HomeView: View {
                     }
                 )
             case .photoUpload(let group, let mediaType):
-                PhotoUploadView(
-                    selectedGroup: group,
+                SimpleUploadView(
+                    group: group,
                     mediaType: mediaType,
                     onBack: {
                         if case .groupSelection(let mediaType) = uploadFlowState {
