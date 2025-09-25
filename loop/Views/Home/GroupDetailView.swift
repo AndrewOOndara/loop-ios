@@ -1,16 +1,22 @@
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
-import Kingfisher
 
 struct GroupDetailView: View {
     let group: UserGroup
     @Environment(\.dismiss) private var dismiss
     @State private var mediaItems: [GroupMedia] = []
     @State private var isUploading: Bool = false
-    @State private var showPicker: Bool = false
-    @State private var selectedPHPickerItems: [PhotosPickerItem] = []
     @State private var isLoadingMedia: Bool = true
+    @State private var showingUploadOptions = false
+    @State private var uploadFlowState: UploadFlowState = .none
+    @State private var selectedMediaType: GroupMediaType = .image
+    
+    enum UploadFlowState: Equatable {
+        case none
+        case mediaUpload(mediaType: GroupMediaType)
+    }
+    
     private let groupService = GroupService()
     
     var body: some View {
@@ -34,7 +40,9 @@ struct GroupDetailView: View {
                         .foregroundColor(BrandColor.black)
                     
                     Spacer()
-                    PhotosPicker(selection: $selectedPHPickerItems, matching: .any(of: [.images, .videos]), photoLibrary: .shared()) {
+                    Button {
+                        showingUploadOptions = true
+                    } label: {
                         if isUploading {
                             ProgressView().tint(BrandColor.orange)
                         } else {
@@ -43,10 +51,7 @@ struct GroupDetailView: View {
                                 .foregroundColor(BrandColor.orange)
                         }
                     }
-                    .onChange(of: selectedPHPickerItems) { _, newItems in
-                        guard !newItems.isEmpty else { return }
-                        Task { await handlePicked(items: newItems) }
-                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, BrandSpacing.lg)
                 .padding(.top, BrandSpacing.md)
@@ -127,6 +132,60 @@ struct GroupDetailView: View {
         }
         .navigationBarHidden(true)
         .task { await loadMedia() }
+        .sheet(isPresented: $showingUploadOptions) {
+            UploadOptionsView(
+                onDismiss: {
+                    showingUploadOptions = false
+                },
+                onPhotoTap: {
+                    selectedMediaType = .image
+                    showingUploadOptions = false
+                    uploadFlowState = .mediaUpload(mediaType: .image)
+                },
+                onVideoTap: {
+                    selectedMediaType = .video
+                    showingUploadOptions = false
+                    uploadFlowState = .mediaUpload(mediaType: .video)
+                },
+                onAudioTap: {
+                    selectedMediaType = .audio
+                    showingUploadOptions = false
+                    uploadFlowState = .mediaUpload(mediaType: .audio)
+                },
+                onMusicTap: {
+                    selectedMediaType = .music
+                    showingUploadOptions = false
+                    uploadFlowState = .mediaUpload(mediaType: .music)
+                }
+            )
+        }
+        .sheet(isPresented: .constant(uploadFlowState != .none)) {
+            uploadFlowView
+        }
+    }
+    
+    // MARK: - Upload Flow View
+    @ViewBuilder
+    private var uploadFlowView: some View {
+        switch uploadFlowState {
+        case .none:
+            EmptyView()
+        case .mediaUpload(let mediaType):
+            SimpleUploadView(
+                group: group,
+                mediaType: mediaType,
+                onBack: {
+                    uploadFlowState = .none
+                },
+                onComplete: {
+                    uploadFlowState = .none
+                    // Refresh the media list
+                    Task {
+                        await loadMedia()
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -153,15 +212,13 @@ private struct MediaTile: View {
     
     var body: some View {
         ZStack {
-            KFImage(try? service.getPublicURL(for: item.thumbnailPath ?? item.storagePath))
-                .placeholder {
-                    Color(UIColor.systemGray5)
-                }
-                .cacheMemoryOnly(false) // Enable disk caching
-                .fade(duration: 0.1) // Quick fade for better UX
-                .loadDiskFileSynchronously() // Load from disk cache synchronously
-                .resizable()
-                .scaledToFill()
+            AsyncImage(url: try? service.getPublicURL(for: item.thumbnailPath ?? item.storagePath)) { image in
+                image
+                    .resizable()
+                    .scaledToFill()
+            } placeholder: {
+                Color(UIColor.systemGray5)
+            }
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
             .clipped()
@@ -217,36 +274,5 @@ private extension GroupDetailView {
                 self.isLoadingMedia = false
             }
         }
-    }
-    
-    func handlePicked(items: [PhotosPickerItem]) async {
-        guard let currentUser = supabase.auth.currentUser else { return }
-        isUploading = true
-        defer { isUploading = false }
-        
-        for item in items {
-            do {
-                if let data = try await item.loadTransferable(type: Data.self) {
-                    // Determine type via content types / extensions
-                    let utType = item.supportedContentTypes.first
-                    let ext = utType?.preferredFilenameExtension?.lowercased() ?? "jpg"
-                    let mediaType: GroupMediaType = (utType?.conforms(to: .movie) == true || ext == "mp4" || ext == "mov") ? .video : .image
-                    
-                    // For videos we could generate thumbnail client-side later. For now omit.
-                    let uploaded = try await groupService.uploadMedia(
-                        groupId: group.id,
-                        userId: currentUser.id,
-                        data: data,
-                        fileExtension: ext,
-                        mediaType: mediaType,
-                        thumbnailData: nil
-                    )
-                    mediaItems.insert(uploaded, at: 0)
-                }
-            } catch {
-                print("[GroupDetailView] Upload failed: \(error)")
-            }
-        }
-        selectedPHPickerItems = []
     }
 }

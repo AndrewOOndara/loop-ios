@@ -251,18 +251,20 @@ struct ProfileMainView: View {
             applicationActivities: nil
         )
         
-        // For iPad support
-        if let popover = activityViewController.popoverPresentationController {
-            popover.sourceView = UIApplication.shared.windows.first
-            popover.sourceRect = CGRect(x: UIScreen.main.bounds.width / 2, 
-                                      y: UIScreen.main.bounds.height / 2, 
-                                      width: 0, height: 0)
-            popover.permittedArrowDirections = []
-        }
-        
         // Present the share sheet
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
+           let window = windowScene.windows.first,
+           let rootViewController = window.rootViewController {
+            
+            // For iPad support
+            if let popover = activityViewController.popoverPresentationController {
+                popover.sourceView = window
+                popover.sourceRect = CGRect(x: UIScreen.main.bounds.width / 2, 
+                                          y: UIScreen.main.bounds.height / 2, 
+                                          width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+            
             rootViewController.present(activityViewController, animated: true)
         }
     }

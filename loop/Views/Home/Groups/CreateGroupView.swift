@@ -10,8 +10,9 @@ struct CreateGroupView: View {
     
     private let groupService = GroupService()
     
-    var onNext: (UserGroup, UIImage?) -> Void // Changed to pass the created UserGroup
+    var onNext: (String, UIImage?) -> Void // Pass group name and image, not created group
     var onBack: (() -> Void)? = nil
+    var onCancel: (() -> Void)? = nil
     
     private var isValidGroupName: Bool {
         groupName.trimmingCharacters(in: .whitespacesAndNewlines).count >= 1
@@ -19,37 +20,30 @@ struct CreateGroupView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button {
-                    onBack?()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
+            // Header with properly aligned Cancel button
+            ZStack {
+                // Centered title
+                HStack {
+                    Spacer()
+                    Text("Create a Group")
+                        .font(BrandFont.title2)
                         .foregroundColor(BrandColor.black)
+                    Spacer()
                 }
-                .buttonStyle(.plain)
                 
-                Spacer()
-                
-                Text("Create a Group")
-                    .font(BrandFont.title2)
-                    .foregroundColor(BrandColor.black)
-                
-                Spacer()
-                
-                Button {
-                    // Cancel action - same as back
-                    onBack?()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(BrandColor.black)
+                // Right-aligned Cancel button
+                HStack {
+                    Spacer()
+                    Button("Cancel") {
+                        // Cancel takes user back to home screen
+                        onCancel?()
+                    }
+                    .font(.system(size: 17))
+                    .foregroundColor(BrandColor.orange)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.md)
+            .padding(.top, BrandSpacing.xl)
             .padding(.bottom, BrandSpacing.lg)
             
             // Main content in top 3/4 of screen
@@ -131,7 +125,7 @@ struct CreateGroupView: View {
                 
                 // Next Button
                 Button {
-                    createGroup()
+                    proceedToNext()
                 } label: {
                     ZStack {
                         if isLoading {
@@ -178,69 +172,27 @@ struct CreateGroupView: View {
         }
     }
     
-    private func createGroup() {
+    private func proceedToNext() {
         guard isValidGroupName else { return }
         
-        isLoading = true
-        errorMessage = nil
-        
         let trimmedName = groupName.trimmingCharacters(in: .whitespacesAndNewlines)
+        print("[CreateGroup] Proceeding with group name: \(trimmedName)")
         
-        Task {
-            do {
-                // Get current user
-                guard let currentUser = supabase.auth.currentUser else {
-                    await MainActor.run {
-                        isLoading = false
-                        errorMessage = "Please log in to create a group"
-                    }
-                    return
-                }
-                
-                print("[CreateGroup] Creating group: \(trimmedName)")
-                
-                // TODO: Handle image upload to Supabase Storage if groupImage exists
-                var avatarURL: String? = nil
-                if let groupImage = groupImage {
-                    // For now, we'll skip image upload - you can add this later
-                    print("[CreateGroup] Image upload not implemented yet")
-                }
-                
-                // Create the group
-                let createdGroup = try await groupService.createGroup(
-                    name: trimmedName,
-                    createdBy: currentUser.id,
-                    avatarURL: avatarURL
-                )
-                
-                await MainActor.run {
-                    isLoading = false
-                    print("[CreateGroup] Successfully created group: \(createdGroup.name) with code: \(createdGroup.groupCode)")
-                    onNext(createdGroup, groupImage)
-                }
-                
-            } catch {
-                print("[CreateGroup] Error creating group: \(error)")
-                await MainActor.run {
-                    isLoading = false
-                    if let groupError = error as? GroupServiceError {
-                        errorMessage = groupError.localizedDescription
-                    } else {
-                        errorMessage = "Failed to create group. Please try again."
-                    }
-                }
-            }
-        }
+        // Just pass the name and image to next screen - don't create group yet
+        onNext(trimmedName, groupImage)
     }
 }
 
 #Preview {
     CreateGroupView(
         onNext: { name, image in
-            print("Creating group: \(name)")
+            print("Proceeding with group name: \(name)")
         },
         onBack: {
             print("Back tapped")
+        },
+        onCancel: {
+            print("Cancel tapped")
         }
     )
 }

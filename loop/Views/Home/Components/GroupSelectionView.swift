@@ -176,6 +176,8 @@ struct GroupSelectionRow: View {
     let group: UserGroup
     let isSelected: Bool
     let onTap: () -> Void
+    @State private var currentMemberCount: Int = 0
+    private let groupService = GroupService()
     
     var body: some View {
         Button {
@@ -187,7 +189,7 @@ struct GroupSelectionRow: View {
                         .font(BrandFont.headline)
                         .foregroundColor(BrandColor.black)
                     
-                    Text("\(group.maxMembers) max members")
+                    Text("\(currentMemberCount) member\(currentMemberCount == 1 ? "" : "s")")
                         .font(BrandFont.caption1)
                         .foregroundColor(BrandColor.lightBrown)
                 }
@@ -218,6 +220,25 @@ struct GroupSelectionRow: View {
             )
         }
         .buttonStyle(.plain)
+        .onAppear {
+            loadMemberCount()
+        }
+    }
+    
+    private func loadMemberCount() {
+        Task {
+            do {
+                let count = try await groupService.getMemberCount(groupId: group.id)
+                await MainActor.run {
+                    currentMemberCount = count
+                }
+            } catch {
+                print("[GroupSelectionRow] Failed to load member count for group \(group.name): \(error)")
+                await MainActor.run {
+                    currentMemberCount = 0
+                }
+            }
+        }
     }
 }
 

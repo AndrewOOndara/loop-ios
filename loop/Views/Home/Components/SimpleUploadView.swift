@@ -137,7 +137,7 @@ struct SimpleUploadView: View {
                     let detectedMediaType: GroupMediaType = (utType?.conforms(to: .movie) == true || ext == "mp4" || ext == "mov") ? .video : .image
                     
                     // For videos we could generate thumbnail client-side later. For now omit.
-                    let uploaded = try await groupService.uploadMedia(
+                    let uploadedMedia = try await groupService.uploadMedia(
                         groupId: group.id,
                         userId: currentUser.id,
                         data: data,
@@ -146,7 +146,7 @@ struct SimpleUploadView: View {
                         thumbnailData: nil
                     )
                     
-                    print("✅ Successfully uploaded \(detectedMediaType.rawValue) to group: \(group.name)")
+                    print("✅ Successfully uploaded \(detectedMediaType.rawValue) to group: \(group.name) - Media ID: \(uploadedMedia.id)")
                     
                     // Upload successful, close the view
                     await MainActor.run {

@@ -1,46 +1,41 @@
 import SwiftUI
 
 struct CreateGroupCodeView: View {
-    let group: UserGroup
+    let groupName: String
     let groupImage: UIImage?
     @State private var isLoading: Bool = false
     @State private var showingShareSheet = false
+    @State private var previewCode: String = ""
     
     var onNext: () -> Void
     var onBack: (() -> Void)? = nil
+    var onCancel: (() -> Void)? = nil
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button {
-                    onBack?()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
+            // Header with properly aligned Cancel button
+            ZStack {
+                // Centered title
+                HStack {
+                    Spacer()
+                    Text("Create a Group")
+                        .font(BrandFont.title2)
                         .foregroundColor(BrandColor.black)
+                    Spacer()
                 }
-                .buttonStyle(.plain)
                 
-                Spacer()
-                
-                Text("Create a Group")
-                    .font(BrandFont.title2)
-                    .foregroundColor(BrandColor.black)
-                
-                Spacer()
-                
-                Button {
-                    onBack?() // Close the entire flow
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(BrandColor.black)
+                // Right-aligned Cancel button
+                HStack {
+                    Spacer()
+                    Button("Cancel") {
+                        onCancel?() // Close the entire flow - takes user back to home screen
+                    }
+                    .font(.system(size: 17))
+                    .foregroundColor(BrandColor.orange)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.md)
+            .padding(.top, BrandSpacing.xl)
             .padding(.bottom, BrandSpacing.lg)
             
             VStack(spacing: BrandSpacing.xl) {
@@ -53,9 +48,9 @@ struct CreateGroupCodeView: View {
                         .padding(.horizontal, BrandSpacing.lg)
                         .padding(.top, BrandSpacing.xl)
                     
-                    // Group Code Display
+                    // Group Code Display (Preview)
                     HStack(spacing: BrandSpacing.md) {
-                        ForEach(Array(group.groupCode.enumerated()), id: \.offset) { index, digit in
+                        ForEach(Array(previewCode.enumerated()), id: \.offset) { index, digit in
                             Text(String(digit))
                                 .font(.system(size: 32, weight: .medium))
                                 .foregroundColor(BrandColor.black)
@@ -123,6 +118,9 @@ struct CreateGroupCodeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(BrandColor.cream)
+        .onAppear {
+            generatePreviewCode()
+        }
         .sheet(isPresented: $showingShareSheet) {
             ShareSheet(items: [generateShareText()])
         }
@@ -132,8 +130,13 @@ struct CreateGroupCodeView: View {
         showingShareSheet = true
     }
     
+    private func generatePreviewCode() {
+        // Generate a preview code (4 random digits)
+        previewCode = String(format: "%04d", Int.random(in: 1000...9999))
+    }
+    
     private func generateShareText() -> String {
-        return "Join my group '\(group.name)' on Loop! Use code: \(group.groupCode)"
+        return "Join my group '\(groupName)' on Loop! Use code: \(previewCode)"
     }
     
     private func proceedToNext() {
@@ -160,13 +163,16 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 #Preview {
     CreateGroupCodeView(
-        group: UserGroup(id: 1, name: "My Test Group", groupCode: "1234", avatarURL: nil, createdBy: UUID(), createdAt: Date(), updatedAt: Date(), isActive: true, maxMembers: 6),
+        groupName: "My Test Group",
         groupImage: nil,
         onNext: {
             print("Proceeding to pending view")
         },
         onBack: {
             print("Back tapped")
+        },
+        onCancel: {
+            print("Cancel tapped")
         }
     )
 }

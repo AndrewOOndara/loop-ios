@@ -12,7 +12,7 @@ struct CreatePostView: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(.primary)
+                    .foregroundColor(BrandColor.orange)
                     
                     Spacer()
                     

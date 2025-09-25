@@ -10,6 +10,7 @@ struct JoinGroupView: View {
     
     var onNext: (UserGroup) -> Void // Changed to pass the found UserGroup
     var onBack: (() -> Void)? = nil
+    var onCancel: (() -> Void)? = nil
     
     private var isValidCode: Bool {
         groupCode.trimmingCharacters(in: .whitespacesAndNewlines).count >= 4
@@ -17,32 +18,30 @@ struct JoinGroupView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button {
-                    onBack?()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
+            // Header with properly aligned Cancel button
+            ZStack {
+                // Centered title
+                HStack {
+                    Spacer()
+                    Text("Join a Group")
+                        .font(BrandFont.title2)
                         .foregroundColor(BrandColor.black)
+                    Spacer()
                 }
-                .buttonStyle(.plain)
                 
-                Spacer()
-                
-                Text("Join a Group")
-                    .font(BrandFont.title2)
-                    .foregroundColor(BrandColor.black)
-                
-                Spacer()
-                
-                // Invisible spacer for balance
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .opacity(0)
+                // Right-aligned Cancel button
+                HStack {
+                    Spacer()
+                    Button("Cancel") {
+                        // Cancel takes user back to home screen
+                        onCancel?()
+                    }
+                    .font(.system(size: 17))
+                    .foregroundColor(BrandColor.orange)
+                }
             }
             .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.md)
+            .padding(.top, BrandSpacing.xl)
             .padding(.bottom, BrandSpacing.lg)
             
             VStack(spacing: BrandSpacing.xl) {
@@ -201,6 +200,9 @@ struct JoinGroupView: View {
         },
         onBack: {
             print("Back tapped")
+        },
+        onCancel: {
+            print("Cancel tapped")
         }
     )
 }

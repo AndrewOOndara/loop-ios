@@ -14,32 +14,27 @@ struct JoinGroupConfirmView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button {
-                    onCancel()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
+            // Header with properly aligned Cancel button
+            ZStack {
+                // Centered title
+                HStack {
+                    Spacer()
+                    Text("Join a Group")
+                        .font(BrandFont.title2)
                         .foregroundColor(BrandColor.black)
+                    Spacer()
                 }
-                .buttonStyle(.plain)
-                
-                Spacer()
-                
-                Text("Join a Group")
-                    .font(BrandFont.title2)
-                    .foregroundColor(BrandColor.black)
-                
-                Spacer()
-                
-                // Invisible spacer for balance
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .opacity(0)
+                // Right-aligned Cancel button
+                HStack {
+                    Button("Cancel") {
+                        onCancel() // Cancel takes user back to home screen
+                    }
+                    .font(.system(size: 17))
+                    .foregroundColor(BrandColor.orange)
+                }
             }
             .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.md)
+            .padding(.top, BrandSpacing.xl)
             .padding(.bottom, BrandSpacing.lg)
             
             VStack(spacing: BrandSpacing.xl) {

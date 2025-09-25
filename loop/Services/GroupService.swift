@@ -434,6 +434,8 @@ enum GroupServiceError: LocalizedError {
     case createFailed
     case codeGenerationFailed
     case userNotFound
+    case notAuthenticated
+    case notAuthorized
     
     var errorDescription: String? {
         switch self {
@@ -451,6 +453,10 @@ enum GroupServiceError: LocalizedError {
             return "Unable to generate unique group code"
         case .userNotFound:
             return "User profile not found"
+        case .notAuthenticated:
+            return "User not authenticated"
+        case .notAuthorized:
+            return "Not authorized to perform this action"
         }
     }
 }
@@ -629,6 +635,42 @@ extension GroupService {
         case "mov": return "video/quicktime"
         default: return "application/octet-stream"
         }
+    }
+    
+    // MARK: - Delete Group Function
+    
+    /// Delete a group permanently (admin only)
+    func deleteGroup(groupId: Int) async throws {
+        print("[GroupService] Deleting group with ID: \(groupId)")
+        
+        // Verify current user
+        guard let currentUser = supabase.auth.currentUser else {
+            print("[GroupService] ❌ No current user - not authenticated!")
+            throw GroupServiceError.notAuthenticated
+        }
+        
+        // First, verify the user is the admin/creator of the group
+        let groups: [UserGroup] = try await supabase
+            .from("groups")
+            .select()
+            .eq("id", value: groupId)
+            .eq("created_by", value: currentUser.id.uuidString)
+            .execute()
+            .value
+        
+        guard !groups.isEmpty else {
+            print("[GroupService] ❌ User is not authorized to delete this group")
+            throw GroupServiceError.notAuthorized
+        }
+        
+        // Delete the group (this should cascade delete members and media via database constraints)
+        try await supabase
+            .from("groups")
+            .delete()
+            .eq("id", value: groupId)
+            .execute()
+        
+        print("[GroupService] ✅ Group deleted successfully")
     }
 }
 

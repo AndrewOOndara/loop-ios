@@ -10,17 +10,12 @@ struct UploadOptionsView: View {
     
     var body: some View {
         VStack(spacing: BrandSpacing.xl) {
-            // Drag handle
-            RoundedRectangle(cornerRadius: 2)
-                .fill(BrandColor.lightBrown)
-                .frame(width: 40, height: 4)
-                .padding(.top, BrandSpacing.sm)
-            
             // Header
             VStack(spacing: BrandSpacing.md) {
                 Text("Upload Media")
                     .font(BrandFont.title1)
                     .foregroundColor(BrandColor.black)
+                    .padding(.top, BrandSpacing.xl)
                     .padding(.top, BrandSpacing.xl)
                 
                 Text("Upload photos, videos, audio, or music!")
@@ -31,52 +26,56 @@ struct UploadOptionsView: View {
             }
             .padding(.top, BrandSpacing.xl)
             
-            
             // Media type selection
             VStack(spacing: BrandSpacing.lg) {
-                // 2x2 Grid of media options
-                VStack(spacing: BrandSpacing.lg) {
-                    // First row: Photo and Video
-                    HStack(spacing: BrandSpacing.xl) {
-                        MediaTypeButton(
-                            icon: "camera.fill",
-                            title: "Photo",
-                            color: BrandColor.orange,
-                            action: onPhotoTap
-                        )
-                        
-                        MediaTypeButton(
-                            icon: "video.fill",
-                            title: "Video", 
-                            color: BrandColor.orange,
-                            action: onVideoTap
-                        )
-                    }
+                // First row: Photo and Video
+                HStack(spacing: BrandSpacing.xl) {
+                    MediaTypeButton(
+                        icon: "camera.fill",
+                        title: "Photo",
+                        color: BrandColor.orange,
+                        action: onPhotoTap
+                    )
                     
-                    // Second row: Audio and Music
-                    HStack(spacing: BrandSpacing.xl) {
-                        MediaTypeButton(
-                            icon: "mic.fill",
-                            title: "Audio",
-                            color: BrandColor.orange,
-                            action: onAudioTap
-                        )
-                        
-                        MediaTypeButton(
-                            icon: "music.note",
-                            title: "Music",
-                            color: BrandColor.orange,
-                            action: onMusicTap
-                        )
-                    }
+                    MediaTypeButton(
+                        icon: "video.fill",
+                        title: "Video", 
+                        color: BrandColor.orange,
+                        action: onVideoTap
+                    )
                 }
-                .padding(.horizontal, BrandSpacing.xxxl)
-                .padding(.bottom, BrandSpacing.xl)
-                .padding(.bottom, BrandSpacing.xl)
-                .padding(.bottom, BrandSpacing.xl)
+                
+                // Second row: Audio and Music
+                HStack(spacing: BrandSpacing.xl) {
+                    MediaTypeButton(
+                        icon: "mic.fill",
+                        title: "Audio",
+                        color: BrandColor.orange,
+                        action: onAudioTap
+                    )
+                    
+                    MediaTypeButton(
+                        icon: "music.note",
+                        title: "Music",
+                        color: BrandColor.orange,
+                        action: onMusicTap
+                    )
+                }
             }
+            .padding(.horizontal, BrandSpacing.lg)
             
-            Spacer() // Push content to center
+            Spacer()
+            
+            // Cancel Button
+            Button {
+                dismiss()
+            } label: {
+                Text("Cancel")
+                    .font(BrandFont.headline)
+                    .foregroundColor(BrandColor.lightBrown)
+            }
+            .buttonStyle(.plain)
+            .padding(.bottom, BrandSpacing.xl)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(BrandColor.cream)

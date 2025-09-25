@@ -1,5 +1,5 @@
 import SwiftUI
-import Kingfisher
+import Supabase
 
 // MARK: - Notification Names
 extension Notification.Name {
@@ -10,9 +10,13 @@ struct GroupDropdownMenu: View {
     @Binding var group: UserGroup
     let onDismiss: () -> Void
     let onShowMemberList: () -> Void
-    @State private var showingEditProfile = false
-    @State private var showingShareCode = false
+    let onShowEditProfile: () -> Void
+    let onShowShareCode: () -> Void
     @State private var showingLeaveConfirmation = false
+    @State private var showingDeleteConfirmation = false
+    @State private var isCurrentUserAdmin = false
+    
+    private let groupService = GroupService()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -22,9 +26,10 @@ struct GroupDropdownMenu: View {
                 title: "Edit group profile",
                 action: {
                     print("🎯 Edit group profile tapped")
-                    showingEditProfile = true
-                    print("🎯 showingEditProfile set to: \(showingEditProfile)")
-                    // Don't auto-dismiss dropdown - let user close it manually
+                    onDismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        onShowEditProfile()
+                    }
                 }
             )
             
@@ -52,10 +57,9 @@ struct GroupDropdownMenu: View {
                 icon: "square.and.arrow.up.fill",
                 title: "Share group code",
                 action: {
+                    print("🔍 Share group code tapped")
+                    onShowShareCode()
                     onDismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        showingShareCode = true
-                    }
                 }
             )
             
@@ -75,6 +79,22 @@ struct GroupDropdownMenu: View {
                     }
                 }
             )
+            
+            // Delete group (only visible for admin users)
+            if isCurrentUserAdmin {
+                DropdownMenuItem(
+                    icon: "trash.fill",
+                    title: "Delete group",
+                    iconColor: .red,
+                    titleColor: .red,
+                    action: {
+                        onDismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            showingDeleteConfirmation = true
+                        }
+                    }
+                )
+            }
         }
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8))
@@ -83,22 +103,8 @@ struct GroupDropdownMenu: View {
                 .stroke(Color(.systemGray4), lineWidth: 0.5)
         )
         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
-        .sheet(isPresented: $showingEditProfile) {
-            EditProfileWorkingView(group: $group, onDismiss: {
-                showingEditProfile = false
-                onDismiss()
-            })
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-            .onAppear {
-                print("🎯 Edit profile sheet appeared!")
-            }
-            .onDisappear {
-                print("🎯 Edit profile sheet disappeared!")
-            }
-        }
-        .sheet(isPresented: $showingShareCode) {
-            ShareCodeView(group: group)
+        .onAppear {
+            checkIfCurrentUserIsAdmin()
         }
         .alert("Leave Group", isPresented: $showingLeaveConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -108,6 +114,50 @@ struct GroupDropdownMenu: View {
             }
         } message: {
             Text("Are you sure you want to leave \"\(group.name)\"? You'll need the group code to rejoin.")
+        }
+        .alert("Delete Group", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                deleteGroup()
+            }
+        } message: {
+            Text("Are you sure you want to permanently delete \"\(group.name)\"? This action cannot be undone and will remove all group data and photos.")
+        }
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func checkIfCurrentUserIsAdmin() {
+        Task {
+            guard let currentUser = supabase.auth.currentUser else {
+                print("❌ No current user found")
+                await MainActor.run {
+                    isCurrentUserAdmin = false
+                }
+                return
+            }
+            
+            await MainActor.run {
+                isCurrentUserAdmin = (currentUser.id == group.createdBy)
+                print("🔍 Admin check: user \(currentUser.id) vs group creator \(group.createdBy) = \(isCurrentUserAdmin)")
+            }
+        }
+    }
+    
+    private func deleteGroup() {
+        Task {
+            do {
+                print("🗑️ Deleting group: \(group.name) (ID: \(group.id))")
+                try await groupService.deleteGroup(groupId: group.id)
+                print("✅ Group deleted successfully")
+                
+                // Post notification to refresh the groups list
+                NotificationCenter.default.post(name: .groupProfileUpdated, object: nil)
+                
+            } catch {
+                print("❌ Error deleting group: \(error)")
+                // TODO: Show error message to user
+            }
         }
     }
 }
@@ -153,83 +203,158 @@ private struct DropdownMenuItem: View {
     }
 }
 
-private struct ShareCodeView: View {
+struct ShareGroupCodeView: View {
     let group: UserGroup
     @Environment(\.dismiss) private var dismiss
+    @State private var currentMemberCount: Int = 0
+    @State private var isLoading = true
+    @State private var showCopiedConfirmation = false
+    
+    private let groupService = GroupService()
     
     var body: some View {
         NavigationView {
-            VStack(spacing: BrandSpacing.xl) {
-                // Group info
-                VStack(spacing: BrandSpacing.md) {
-                    Text("Share Group Code")
-                        .font(BrandFont.title1)
-                        .foregroundColor(BrandColor.black)
-                    
+            VStack(spacing: 0) {
+                // Main content with proper spacing
+                VStack(spacing: 32) {
+                    // Top description
                     Text("Share this code with friends to let them join \"\(group.name)\"")
-                        .font(BrandFont.body)
-                        .foregroundColor(BrandColor.systemGray)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(BrandColor.lightBrown)
                         .multilineTextAlignment(.center)
-                }
-                .padding(.top, BrandSpacing.xl)
-                
-                // Group code display
-                VStack(spacing: BrandSpacing.md) {
-                    Text("Group Code")
-                        .font(BrandFont.footnote)
-                        .foregroundColor(BrandColor.systemGray)
-                        .textCase(.uppercase)
-                        .tracking(1.0)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 32)
                     
-                    Text(group.groupCode)
-                        .font(.system(size: 48, weight: .bold, design: .monospaced))
-                        .foregroundColor(BrandColor.orange)
-                        .tracking(8.0)
-                        .padding(.horizontal, BrandSpacing.lg)
-                        .padding(.vertical, BrandSpacing.md)
-                        .background(BrandColor.cream)
-                        .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
-                }
-                
-                // Share button
-                Button {
-                    // Share the group code
-                    let shareText = "Join my group \"\(group.name)\" on Loop! Use code: \(group.groupCode)"
-                    let activityViewController = UIActivityViewController(
-                        activityItems: [shareText],
-                        applicationActivities: nil
-                    )
+                    // Group code and share button section
+                    VStack(spacing: 24) {
+                        // Code display with individual digit boxes
+                        HStack(spacing: 12) {
+                            ForEach(Array(group.groupCode.enumerated()), id: \.offset) { index, digit in
+                                Text(String(digit))
+                                    .font(.system(size: 28, weight: .bold, design: .monospaced))
+                                    .foregroundColor(BrandColor.black)
+                                    .frame(width: 55, height: 65)
+                                    .background(BrandColor.white)
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(BrandColor.lightBrown.opacity(0.3), lineWidth: 1)
+                                    )
+                            }
+                        }
+                        
+                        // Share button
+                        Button {
+                            shareAndCopyCode()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: showCopiedConfirmation ? "checkmark" : "square.and.arrow.up")
+                                    .font(.system(size: 16, weight: .medium))
+                                Text(showCopiedConfirmation ? "Copied!" : "Share Code")
+                                    .font(.system(size: 16, weight: .medium))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(showCopiedConfirmation ? BrandColor.orange.opacity(0.8) : BrandColor.orange)
+                            .cornerRadius(12)
+                        }
+                        .padding(.horizontal, 32)
+                    }
                     
-                    if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let window = windowScene.windows.first {
-                        window.rootViewController?.present(activityViewController, animated: true)
+                    // Member count info at the bottom
+                    VStack(spacing: 8) {
+                        if isLoading {
+                            Text("Loading member information...")
+                                .font(.system(size: 14))
+                                .foregroundColor(BrandColor.lightBrown)
+                        } else {
+                            let remainingSlots = group.maxMembers - currentMemberCount
+                            if remainingSlots > 0 {
+                                Text("This group currently has \(currentMemberCount) member\(currentMemberCount == 1 ? "" : "s"). You can invite up to \(remainingSlots) more \(remainingSlots == 1 ? "person" : "people").")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(BrandColor.lightBrown)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(nil)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.horizontal, 20)
+                            } else {
+                                Text("This group is full with \(currentMemberCount) members.")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(BrandColor.lightBrown)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(nil)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.horizontal, 20)
+                            }
+                        }
                     }
-                } label: {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text("Share Code")
-                            .font(BrandFont.body)
-                            .fontWeight(.semibold)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, BrandSpacing.md)
-                    .background(BrandColor.orange)
-                    .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
+                    .padding(.bottom, 40)
+                    
+                    Spacer()
                 }
-                .padding(.horizontal, BrandSpacing.lg)
-                
-                Spacer()
             }
-            .padding(.horizontal, BrandSpacing.lg)
+            .background(BrandColor.cream)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
                         dismiss()
                     }
                     .foregroundColor(BrandColor.orange)
+                }
+                
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 2) {
+                        Text("Share Group")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(BrandColor.black)
+                    }
+                }
+            }
+        }
+        .onAppear {
+            print("🔍 ShareGroupCodeView appeared for group: \(group.name)")
+            loadMemberCount()
+        }
+    }
+    
+    private func shareAndCopyCode() {
+        // Generate the share message
+        let shareText = "Join our group \"\(group.name)\"! 🎉\n\nThe group code is: \(group.groupCode)\n\nDownload Loop to get started!"
+        
+        // Copy the message to clipboard immediately
+        UIPasteboard.general.string = shareText
+        print("📋 Copied to clipboard: \(shareText)")
+        
+        // Show visual feedback that it's copied
+        showCopiedConfirmation = true
+        
+        // After showing "Copied!" for 1.5 seconds, dismiss the popup
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            dismiss()
+        }
+    }
+    
+    private func loadMemberCount() {
+        print("🔄 Loading member count for group: \(group.name) (ID: \(group.id))")
+        isLoading = true
+        
+        Task {
+            do {
+                let memberCount = try await groupService.getMemberCount(groupId: group.id)
+                await MainActor.run {
+                    self.currentMemberCount = memberCount
+                    self.isLoading = false
+                    print("✅ Loaded member count: \(memberCount) for group: \(group.name)")
+                }
+            } catch {
+                await MainActor.run {
+                    self.currentMemberCount = 0
+                    self.isLoading = false
+                    print("❌ Error loading member count: \(error)")
                 }
             }
         }
@@ -249,7 +374,7 @@ private struct ShareCodeView: View {
         maxMembers: 10
     )
     
-    return GroupDropdownMenu(group: .constant(sampleGroup), onDismiss: {}, onShowMemberList: {})
+    return GroupDropdownMenu(group: .constant(sampleGroup), onDismiss: {}, onShowMemberList: {}, onShowEditProfile: {}, onShowShareCode: {})
         .padding()
         .background(BrandColor.cream)
 }
@@ -283,27 +408,25 @@ struct EditProfileWorkingView: View {
                                     .clipShape(Circle())
                             } else if let avatarURL = group.avatarURL, !avatarURL.isEmpty {
                                 // Show existing group avatar
-                                KFImage(URL(string: avatarURL))
-                                    .placeholder {
-                                        Circle()
-                                            .fill(BrandColor.cream)
-                                            .overlay(
-                                                Image(systemName: "person.2.fill")
-                                                    .font(.system(size: 30))
-                                                    .foregroundColor(BrandColor.orange)
-                                            )
-                                    }
-                                    .cacheMemoryOnly(false) // Enable disk caching
-                                    .fade(duration: 0.1) // Quick fade for better UX
-                                    .loadDiskFileSynchronously() // Load from disk cache synchronously
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: 120, height: 120)
-                                    .clipShape(Circle())
+                                AsyncImage(url: getGroupImageURL(from: avatarURL)) { image in
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Circle()
+                                        .fill(BrandColor.cream)
+                                        .overlay(
+                                            Image(systemName: "person.2.fill")
+                                                .font(.system(size: 30))
+                                                .foregroundColor(BrandColor.orange)
+                                        )
+                                }
+                                .frame(width: 120, height: 120)
+                                .clipShape(Circle())
                             } else {
-                                // Show default group icon (same as GroupCard)
+                                // Show default group icon with white background for contrast
                                 Circle()
-                                    .fill(BrandColor.cream)
+                                    .fill(BrandColor.white)
                                     .frame(width: 120, height: 120)
                                     .overlay(
                                         Image(systemName: "person.2.fill")
@@ -375,36 +498,56 @@ struct EditProfileWorkingView: View {
                     Spacer(minLength: 50)
                 }
             }
-            .background(Color(.systemBackground))
+            .background(BrandColor.cream)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         onDismiss()
                     }
-                    .foregroundColor(.primary)
+                    .foregroundColor(BrandColor.orange)
                 }
                 
                 ToolbarItem(placement: .principal) {
-                    Text(" Group Settings")
+                    Text("Group Settings")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.primary)
+                        .foregroundColor(BrandColor.black)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(isLoading ? "Saving..." : "Save") {
                         saveChanges()
                     }
-                    .foregroundColor(.orange)
+                    .foregroundColor(BrandColor.orange)
                     .disabled(groupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
                 }
             }
         }
+        .background(BrandColor.cream)
         .onAppear {
             groupName = group.name
         }
         .sheet(isPresented: $showingImagePicker) {
             ImagePicker(selectedImage: $selectedImage)
+        }
+    }
+    
+    private func getGroupImageURL(from avatarURL: String?) -> URL? {
+        guard let avatarURL = avatarURL, !avatarURL.isEmpty else {
+            return nil
+        }
+        
+        // If it's already a full URL, return it directly
+        if avatarURL.hasPrefix("http") {
+            return URL(string: avatarURL)
+        }
+        
+        // Otherwise, try to get the public URL using GroupService for storage paths
+        do {
+            return try groupService.getPublicURL(for: avatarURL)
+        } catch {
+            print("❌ Error getting public URL for group avatar: \(error)")
+            return nil
         }
     }
     
@@ -512,6 +655,7 @@ struct ImagePicker: UIViewControllerRepresentable {
 
 struct GroupMemberListView: View {
     let group: UserGroup
+    @Environment(\.dismiss) private var dismiss
     @State private var members: [GroupMemberWithProfile] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -556,16 +700,24 @@ struct GroupMemberListView: View {
                     }
                 }
             }
-            .background(Color(.systemBackground))
+            .background(BrandColor.cream)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundColor(BrandColor.orange)
+                }
+                
                 ToolbarItem(placement: .principal) {
                     VStack(spacing: 2) {
                         Text("Members")
                             .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(BrandColor.black)
                         Text("\(members.count) member\(members.count == 1 ? "" : "s")")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(BrandColor.lightBrown)
                     }
                 }
             }
@@ -630,23 +782,21 @@ struct MemberRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // Profile Photo
-            KFImage(getProfileImageURL(from: member.profiles.avatarURL))
-                .placeholder {
-                    Circle()
-                        .fill(BrandColor.cream)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(BrandColor.orange)
-                        )
-                }
-                .cacheMemoryOnly(false) // Enable disk caching
-                .fade(duration: 0.1) // Quick fade for better UX
-                .loadDiskFileSynchronously() // Load from disk cache synchronously
-                .resizable()
-                .scaledToFill()
-                .frame(width: 50, height: 50)
-                .clipShape(Circle())
+            AsyncImage(url: getProfileImageURL(from: member.profiles.avatarURL)) { image in
+                image
+                    .resizable()
+                    .scaledToFill()
+            } placeholder: {
+                Circle()
+                    .fill(BrandColor.cream)
+                    .overlay(
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(BrandColor.orange)
+                    )
+            }
+            .frame(width: 50, height: 50)
+            .clipShape(Circle())
             
             // Member Info
             VStack(alignment: .leading, spacing: 4) {
@@ -692,11 +842,30 @@ struct MemberRow: View {
             return nil
         }
         
-        // Try to get the public URL using GroupService
+        // If it's already a full URL, return it directly
+        if avatarURL.hasPrefix("http") {
+            return URL(string: avatarURL)
+        }
+        
+        // Otherwise, try to get the public URL using GroupService for storage paths
         do {
             return try groupService.getPublicURL(for: avatarURL)
         } catch {
             print("❌ Error getting public URL for avatar: \(error)")
+            // If GroupService fails, try constructing the Supabase public URL directly
+            if avatarURL.contains("avatars/") {
+                // Extract just the filename if it contains the full path
+                let filename = avatarURL.components(separatedBy: "/").last ?? avatarURL
+                do {
+                    let publicURL = try supabase.storage
+                        .from("avatars")
+                        .getPublicURL(path: filename)
+                    return publicURL
+                } catch {
+                    print("❌ Error getting public URL from Supabase storage: \(error)")
+                    return nil
+                }
+            }
             return nil
         }
     }

@@ -33,6 +33,10 @@ struct MainContentView: View {
                                         if !navigationPath.isEmpty {
                                             navigationPath.removeLast()
                                         }
+                                    },
+                                    onCancel: {
+                                        // Cancel takes user back to home - clear all navigation
+                                        navigationPath.removeAll()
                                     }
                                 )
                             case .joinGroupConfirm(let group):
@@ -42,9 +46,8 @@ struct MainContentView: View {
                                         navigationPath.append(.joinGroupSuccess)
                                     },
                                     onCancel: {
-                                        if !navigationPath.isEmpty {
-                                            navigationPath.removeLast()
-                                        }
+                                        // Cancel takes user back to home - clear all navigation
+                                        navigationPath.removeAll()
                                     }
                                 )
                             case .joinGroupSuccess:
@@ -61,31 +64,39 @@ struct MainContentView: View {
                                 }
                             case .createGroup:
                                 CreateGroupView(
-                                    onNext: { group, image in
-                                        navigationPath.append(.createGroupCode(group: group, groupImage: image))
+                                    onNext: { groupName, image in
+                                        navigationPath.append(.createGroupCode(groupName: groupName, groupImage: image))
                                     },
                                     onBack: {
                                         if !navigationPath.isEmpty {
                                             navigationPath.removeLast()
                                         }
+                                    },
+                                    onCancel: {
+                                        // Cancel takes user back to home - clear all navigation
+                                        navigationPath.removeAll()
                                     }
                                 )
-                            case .createGroupCode(let group, let image):
+                            case .createGroupCode(let groupName, let image):
                                 CreateGroupCodeView(
-                                    group: group,
+                                    groupName: groupName,
                                     groupImage: image,
                                     onNext: {
-                                        navigationPath.append(.createGroupPending(group: group, groupImage: image))
+                                        navigationPath.append(.createGroupPending(groupName: groupName, groupImage: image))
                                     },
                                     onBack: {
                                         if !navigationPath.isEmpty {
                                             navigationPath.removeLast()
                                         }
+                                    },
+                                    onCancel: {
+                                        // Cancel takes user back to home - clear all navigation
+                                        navigationPath.removeAll()
                                     }
                                 )
-                            case .createGroupPending(let group, let image):
+                            case .createGroupPending(let groupName, let image):
                                 CreateGroupPendingView(
-                                    group: group,
+                                    groupName: groupName,
                                     groupImage: image,
                                     onDone: {
                                         // Go back to home (clear all group-related navigation)

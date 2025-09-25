@@ -1,5 +1,4 @@
 import SwiftUI
-import Kingfisher
 
 struct GroupCard: View {
     @Binding var group: UserGroup
@@ -11,6 +10,8 @@ struct GroupCard: View {
     @State private var currentMemberCount: Int = 0
     @State private var showingDropdownMenu: Bool = false
     @State private var showingMemberList: Bool = false
+    @State private var showingEditProfile: Bool = false
+    @State private var showingShareCode: Bool = false
     private let groupService = GroupService()
     
     var body: some View {
@@ -19,18 +20,16 @@ struct GroupCard: View {
             HStack {
                 // Group Profile Photo
                 if let avatarURL = group.avatarURL, let url = try? groupService.getPublicURL(for: avatarURL) {
-                    KFImage(url)
-                        .placeholder {
-                            Image(systemName: "person.2.fill")
-                                .foregroundColor(BrandColor.orange)
-                        }
-                        .cacheMemoryOnly(false) // Enable disk caching
-                        .fade(duration: 0.1) // Quick fade for better UX
-                        .loadDiskFileSynchronously() // Load from disk cache synchronously
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 32, height: 32)
-                        .clipShape(Circle())
+                    AsyncImage(url: url) { image in
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } placeholder: {
+                        Image(systemName: "person.2.fill")
+                            .foregroundColor(BrandColor.orange)
+                    }
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
                 } else {
                     // Default group icon when no avatar
                     Image(systemName: "person.2.fill")
@@ -131,6 +130,14 @@ struct GroupCard: View {
                     onShowMemberList: {
                         print("🔍 GroupCard: Showing member list...")
                         showingMemberList = true
+                    },
+                    onShowEditProfile: {
+                        print("🔍 GroupCard: Showing edit profile...")
+                        showingEditProfile = true
+                    },
+                    onShowShareCode: {
+                        print("🔍 GroupCard: Showing share code...")
+                        showingShareCode = true
                     }
                 )
                 .frame(width: 220)
@@ -163,6 +170,30 @@ struct GroupCard: View {
                 }
                 .onDisappear {
                     print("🎯 Member list sheet disappeared from GroupCard!")
+                }
+        }
+        .sheet(isPresented: $showingEditProfile) {
+            EditProfileWorkingView(group: $group, onDismiss: {
+                showingEditProfile = false
+            })
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .onAppear {
+                print("🎯 Edit profile sheet appeared from GroupCard!")
+            }
+            .onDisappear {
+                print("🎯 Edit profile sheet disappeared from GroupCard!")
+            }
+        }
+        .sheet(isPresented: $showingShareCode) {
+            ShareGroupCodeView(group: group)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .onAppear {
+                    print("🎯 Share code sheet appeared from GroupCard!")
+                }
+                .onDisappear {
+                    print("🎯 Share code sheet disappeared from GroupCard!")
                 }
         }
     }
@@ -258,19 +289,15 @@ private struct PreviewTile: View {
                 if let media = media {
                     // Show actual media preview
                     if let url = try? groupService.getPublicURL(for: media.storagePath) {
-                        KFImage(url)
-                            .placeholder {
-                                Image(systemName: "photo")
-                                    .foregroundColor(BrandColor.systemGray3)
-                            }
-                            .cacheMemoryOnly(false) // Enable disk caching
-                            .fade(duration: 0.1) // Quick fade for better UX
-                            .loadDiskFileSynchronously() // Load from disk cache synchronously
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: size, height: size)
-                            .clipped()
-                            .transaction { t in t.animation = nil }
+                        AsyncImage(url: url) { image in
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } placeholder: {
+                            Rectangle()
+                                .fill(BrandColor.systemGray5)
+                        }
+                        .transaction { t in t.animation = nil }
                     } else {
                         // Show placeholder icon if URL creation fails
                         Image(systemName: "photo")

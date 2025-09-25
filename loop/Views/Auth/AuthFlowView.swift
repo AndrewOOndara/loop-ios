@@ -19,8 +19,8 @@ enum AuthRoute: Hashable {
     case joinGroupConfirm(group: UserGroup)
     case joinGroupSuccess
     case createGroup
-    case createGroupCode(group: UserGroup, groupImage: UIImage?)
-    case createGroupPending(group: UserGroup, groupImage: UIImage?)
+    case createGroupCode(groupName: String, groupImage: UIImage?)
+    case createGroupPending(groupName: String, groupImage: UIImage?)
 }
 
 struct AuthFlowView: View {
@@ -87,6 +87,10 @@ struct AuthFlowView: View {
                             if !path.isEmpty {
                                 path.removeLast()
                             }
+                        },
+                        onCancel: {
+                            // Cancel takes user back to home - clear all navigation
+                            path.removeAll()
                         }
                     )
                     .navigationBarBackButtonHidden(true)
@@ -97,10 +101,8 @@ struct AuthFlowView: View {
                             path.append(.joinGroupSuccess)
                         },
                         onCancel: {
-                            // Go back to join group code entry
-                            if !path.isEmpty {
-                                path.removeLast()
-                            }
+                            // Cancel takes user back to home - clear all navigation
+                            path.removeAll()
                         }
                     )
                     .navigationBarBackButtonHidden(true)
@@ -119,33 +121,41 @@ struct AuthFlowView: View {
                     .navigationBarBackButtonHidden(true)
                 case .createGroup:
                     CreateGroupView(
-                        onNext: { group, groupImage in
-                            path.append(.createGroupCode(group: group, groupImage: groupImage))
+                        onNext: { groupName, groupImage in
+                            path.append(.createGroupCode(groupName: groupName, groupImage: groupImage))
                         },
                         onBack: {
                             if !path.isEmpty {
                                 path.removeLast()
                             }
+                        },
+                        onCancel: {
+                            // Cancel takes user back to home - clear all navigation
+                            path.removeAll()
                         }
                     )
                     .navigationBarBackButtonHidden(true)
-                case .createGroupCode(let group, let groupImage):
+                case .createGroupCode(let groupName, let groupImage):
                     CreateGroupCodeView(
-                        group: group,
+                        groupName: groupName,
                         groupImage: groupImage,
                         onNext: {
-                            path.append(.createGroupPending(group: group, groupImage: groupImage))
+                            path.append(.createGroupPending(groupName: groupName, groupImage: groupImage))
                         },
                         onBack: {
                             if !path.isEmpty {
                                 path.removeLast()
                             }
+                        },
+                        onCancel: {
+                            // Cancel takes user back to home - clear all navigation
+                            path.removeAll()
                         }
                     )
                     .navigationBarBackButtonHidden(true)
-                case .createGroupPending(let group, let groupImage):
+                case .createGroupPending(let groupName, let groupImage):
                     CreateGroupPendingView(
-                        group: group,
+                        groupName: groupName,
                         groupImage: groupImage,
                         onDone: {
                             // Go back to home (clear all group-related navigation)
