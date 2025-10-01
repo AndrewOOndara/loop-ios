@@ -86,10 +86,7 @@ struct GroupDropdownMenu: View {
                     iconColor: .red,
                     titleColor: .red,
                     action: {
-                        onDismiss()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            showingDeleteConfirmation = true
-                        }
+                        showingDeleteConfirmation = true
                     }
                 )
             }
@@ -123,12 +120,16 @@ struct GroupDropdownMenu: View {
             }
         }
         .alert("Delete Group", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { 
+                onDismiss()
+            }
             Button("Delete", role: .destructive) {
+                onDismiss()
                 deleteGroup()
             }
         } message: {
             Text("Are you sure you want to permanently delete \"\(group.name)\"? This action cannot be undone and will remove all group data and photos.")
+                .multilineTextAlignment(.center)
         }
     }
     
