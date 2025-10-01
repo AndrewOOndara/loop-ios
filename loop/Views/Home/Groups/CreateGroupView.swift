@@ -43,7 +43,7 @@ struct CreateGroupView: View {
                 }
             }
             .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.xl)
+            .padding(.top, BrandSpacing.sm)
             .padding(.bottom, BrandSpacing.lg)
             
             // Main content in top 3/4 of screen

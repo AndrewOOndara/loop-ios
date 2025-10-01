@@ -1,4 +1,5 @@
 import SwiftUI
+import Supabase
 
 struct CreateGroupCodeView: View {
     let groupName: String
@@ -35,7 +36,7 @@ struct CreateGroupCodeView: View {
                 }
             }
             .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.xl)
+            .padding(.top, BrandSpacing.sm)
             .padding(.bottom, BrandSpacing.lg)
             
             VStack(spacing: BrandSpacing.xl) {
@@ -142,10 +143,52 @@ struct CreateGroupCodeView: View {
     private func proceedToNext() {
         isLoading = true
         
-        // Simulate API call delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isLoading = false
-            onNext()
+        Task {
+            do {
+                // Get current user
+                guard let currentUser = supabase.auth.currentUser else {
+                    await MainActor.run {
+                        isLoading = false
+                        // Handle error - user not authenticated
+                    }
+                    return
+                }
+                
+                print("[CreateGroupCode] Creating group: \(groupName)")
+                
+                // TODO: Handle image upload to Supabase Storage if groupImage exists
+                let avatarURL: String? = nil
+                if groupImage != nil {
+                    // For now, we'll skip image upload - you can add this later
+                    print("[CreateGroupCode] Image upload not implemented yet")
+                }
+                
+                // Create the group
+                let groupService = GroupService()
+                let newGroup = try await groupService.createGroup(
+                    name: groupName,
+                    createdBy: currentUser.id,
+                    avatarURL: avatarURL
+                )
+                
+                await MainActor.run {
+                    isLoading = false
+                    print("[CreateGroupCode] Successfully created group: \(newGroup.name) with code: \(newGroup.groupCode)")
+                    
+                    // Refresh the home page to show the new group
+                    NotificationCenter.default.post(name: .groupProfileUpdated, object: nil)
+                    
+                    // Navigate to success page
+                    onNext()
+                }
+                
+            } catch {
+                print("[CreateGroupCode] Error creating group: \(error)")
+                await MainActor.run {
+                    isLoading = false
+                    // TODO: Show error message to user
+                }
+            }
         }
     }
 }

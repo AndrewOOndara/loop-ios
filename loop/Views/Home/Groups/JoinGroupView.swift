@@ -41,7 +41,7 @@ struct JoinGroupView: View {
                 }
             }
             .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.xl)
+            .padding(.top, BrandSpacing.sm)
             .padding(.bottom, BrandSpacing.lg)
             
             VStack(spacing: BrandSpacing.xl) {

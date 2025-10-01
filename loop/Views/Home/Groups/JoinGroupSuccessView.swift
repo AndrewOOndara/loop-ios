@@ -2,7 +2,7 @@ import SwiftUI
 
 struct JoinGroupSuccessView: View {
     @Environment(\.dismiss) private var dismiss
-    let groupName: String = "test group 1" // Demo group name
+    let groupName: String
     
     var onDone: () -> Void
     
@@ -10,30 +10,14 @@ struct JoinGroupSuccessView: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Button {
-                    onDone()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(BrandColor.black)
-                }
-                .buttonStyle(.plain)
-                
                 Spacer()
                 
-                Text("Join a Group")
-                    .font(BrandFont.title2)
-                    .foregroundColor(BrandColor.black)
+                
                 
                 Spacer()
-                
-                // Invisible spacer for balance
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold))
-                    .opacity(0)
             }
             .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.md)
+            .padding(.top, BrandSpacing.sm)
             .padding(.bottom, BrandSpacing.lg)
             .padding(.bottom, BrandSpacing.xl)
             .padding(.bottom, BrandSpacing.xl)
@@ -95,7 +79,7 @@ struct JoinGroupSuccessView: View {
 }
 
 #Preview {
-    JoinGroupSuccessView {
+    JoinGroupSuccessView(groupName: "Test Group") {
         print("Done tapped")
     }
 }

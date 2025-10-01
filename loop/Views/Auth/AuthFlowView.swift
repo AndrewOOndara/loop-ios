@@ -17,10 +17,11 @@ enum AuthRoute: Hashable {
     case notifications
     case joinGroup
     case joinGroupConfirm(group: UserGroup)
-    case joinGroupSuccess
+    case joinGroupSuccess(groupName: String)
     case createGroup
     case createGroupCode(groupName: String, groupImage: UIImage?)
     case createGroupPending(groupName: String, groupImage: UIImage?)
+    case createGroupSuccess(groupName: String)
 }
 
 struct AuthFlowView: View {
@@ -98,7 +99,7 @@ struct AuthFlowView: View {
                     JoinGroupConfirmView(
                         group: group,
                         onConfirm: {
-                            path.append(.joinGroupSuccess)
+                            path.append(.joinGroupSuccess(groupName: group.name))
                         },
                         onCancel: {
                             // Cancel takes user back to home - clear all navigation
@@ -106,8 +107,8 @@ struct AuthFlowView: View {
                         }
                     )
                     .navigationBarBackButtonHidden(true)
-                case .joinGroupSuccess:
-                    JoinGroupSuccessView {
+                case .joinGroupSuccess(let groupName):
+                    JoinGroupSuccessView(groupName: groupName) {
                         // Go back to home (clear all group-related navigation)
                         path.removeAll { route in
                             switch route {
@@ -140,7 +141,7 @@ struct AuthFlowView: View {
                         groupName: groupName,
                         groupImage: groupImage,
                         onNext: {
-                            path.append(.createGroupPending(groupName: groupName, groupImage: groupImage))
+                            path.append(.createGroupSuccess(groupName: groupName))
                         },
                         onBack: {
                             if !path.isEmpty {
@@ -162,6 +163,23 @@ struct AuthFlowView: View {
                             path.removeAll { route in
                                 switch route {
                                 case .createGroup, .createGroupCode, .createGroupPending:
+                                    return true
+                                default:
+                                    return false
+                                }
+                            }
+                        }
+                    )
+                    .navigationBarBackButtonHidden(true)
+                case .createGroupSuccess(let groupName):
+                    CreateGroupPendingView(
+                        groupName: groupName,
+                        groupImage: nil,
+                        onDone: {
+                            // Go back to home (clear all group-related navigation)
+                            path.removeAll { route in
+                                switch route {
+                                case .createGroup, .createGroupCode, .createGroupPending, .createGroupSuccess:
                                     return true
                                 default:
                                     return false

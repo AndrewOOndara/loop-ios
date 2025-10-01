@@ -14,24 +14,11 @@ struct CreateGroupPendingView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                // Spacer to balance any future right-side elements
-                Spacer()
-                
-                Text("Create a Group")
-                    .font(BrandFont.title2)
-                    .foregroundColor(BrandColor.black)
-                
-                Spacer()
-            }
-            .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.md)
-            .padding(.bottom, BrandSpacing.lg)
-            .padding(.bottom, BrandSpacing.xl)
-            .padding(.bottom, BrandSpacing.xl)
+            // Header - removed title for cleaner success page
+            Spacer()
+                .frame(height: BrandSpacing.xl * 3)
             
-            // Main content in top 3/4 of screen
+            // Main content - centered
             VStack(spacing: BrandSpacing.xl) {
                 if isLoading {
                     // Loading state
@@ -81,12 +68,35 @@ struct CreateGroupPendingView: View {
                             .multilineTextAlignment(.center)
                     }
                 } else {
-                    // Initial state - should start creating immediately
-                    VStack(spacing: BrandSpacing.lg) {
-                        Text("Creating your group...")
+                    // Initial state - show create group button
+                    VStack(spacing: BrandSpacing.xl) {
+                        Text("Ready to create")
                             .font(BrandFont.title2)
                             .foregroundColor(BrandColor.black)
                             .multilineTextAlignment(.center)
+                        
+                        Text("\"\(groupName)\"?")
+                            .font(BrandFont.title1)
+                            .foregroundColor(BrandColor.orange)
+                            .multilineTextAlignment(.center)
+                        
+                        Button {
+                            createGroup()
+                        } label: {
+                            ZStack {
+                                if isLoading {
+                                    ProgressView()
+                                        .tint(.white)
+                                } else {
+                                    Text("Create Group")
+                                        .font(BrandFont.headline)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                        }
+                        .primaryButton(isEnabled: !isLoading)
+                        .disabled(isLoading)
+                        .padding(.horizontal, BrandSpacing.lg)
                     }
                 }
                 
@@ -137,12 +147,26 @@ struct CreateGroupPendingView: View {
                 }
             }
             
-            Spacer() // Pushes all content to top 3/4
+            Spacer() // Pushes content to center
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(BrandColor.cream)
         .onAppear {
-            createGroup()
+            // Group is already created, show success state immediately
+            if createdGroup == nil {
+                // Create a mock group object to show success state
+                createdGroup = UserGroup(
+                    id: 0,
+                    name: groupName,
+                    groupCode: "MOCK",
+                    avatarURL: nil,
+                    createdBy: UUID(),
+                    createdAt: Date(),
+                    updatedAt: Date(),
+                    isActive: true,
+                    maxMembers: 50
+                )
+            }
         }
     }
     

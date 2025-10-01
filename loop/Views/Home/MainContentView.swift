@@ -43,15 +43,15 @@ struct MainContentView: View {
                                 JoinGroupConfirmView(
                                     group: group,
                                     onConfirm: {
-                                        navigationPath.append(.joinGroupSuccess)
+                                        navigationPath.append(.joinGroupSuccess(groupName: group.name))
                                     },
                                     onCancel: {
                                         // Cancel takes user back to home - clear all navigation
                                         navigationPath.removeAll()
                                     }
                                 )
-                            case .joinGroupSuccess:
-                                JoinGroupSuccessView {
+                            case .joinGroupSuccess(let groupName):
+                                JoinGroupSuccessView(groupName: groupName) {
                                     // Go back to home (clear all group-related navigation)
                                     navigationPath.removeAll { route in
                                         switch route {
@@ -62,6 +62,7 @@ struct MainContentView: View {
                                         }
                                     }
                                 }
+                                .navigationBarBackButtonHidden(true)
                             case .createGroup:
                                 CreateGroupView(
                                     onNext: { groupName, image in
@@ -82,7 +83,7 @@ struct MainContentView: View {
                                     groupName: groupName,
                                     groupImage: image,
                                     onNext: {
-                                        navigationPath.append(.createGroupPending(groupName: groupName, groupImage: image))
+                                        navigationPath.append(.createGroupSuccess(groupName: groupName))
                                     },
                                     onBack: {
                                         if !navigationPath.isEmpty {
@@ -110,6 +111,24 @@ struct MainContentView: View {
                                         }
                                     }
                                 )
+                                .navigationBarBackButtonHidden(true)
+                            case .createGroupSuccess(let groupName):
+                                CreateGroupPendingView(
+                                    groupName: groupName,
+                                    groupImage: nil,
+                                    onDone: {
+                                        // Go back to home (clear all group-related navigation)
+                                        navigationPath.removeAll { route in
+                                            switch route {
+                                            case .createGroup, .createGroupCode, .createGroupPending, .createGroupSuccess:
+                                                return true
+                                            default:
+                                                return false
+                                            }
+                                        }
+                                    }
+                                )
+                                .navigationBarBackButtonHidden(true)
                             default:
                                 Text("Unknown authenticated route: \(String(describing: route))")
                             }

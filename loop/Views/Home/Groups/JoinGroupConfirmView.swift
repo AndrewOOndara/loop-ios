@@ -24,8 +24,10 @@ struct JoinGroupConfirmView: View {
                         .foregroundColor(BrandColor.black)
                     Spacer()
                 }
+                
                 // Right-aligned Cancel button
                 HStack {
+                    Spacer()
                     Button("Cancel") {
                         onCancel() // Cancel takes user back to home screen
                     }
@@ -34,7 +36,7 @@ struct JoinGroupConfirmView: View {
                 }
             }
             .padding(.horizontal, BrandSpacing.lg)
-            .padding(.top, BrandSpacing.xl)
+            .padding(.top, BrandSpacing.sm)
             .padding(.bottom, BrandSpacing.lg)
             
             VStack(spacing: BrandSpacing.xl) {
