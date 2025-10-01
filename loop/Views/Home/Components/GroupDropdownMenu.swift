@@ -15,6 +15,7 @@ struct GroupDropdownMenu: View {
     @State private var showingLeaveConfirmation = false
     @State private var showingDeleteConfirmation = false
     @State private var isCurrentUserAdmin = false
+    @State private var memberCount = 0
     
     private let groupService = GroupService()
     
@@ -73,10 +74,7 @@ struct GroupDropdownMenu: View {
                 iconColor: .red,
                 titleColor: .red,
                 action: {
-                    onDismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        showingLeaveConfirmation = true
-                    }
+                    showingLeaveConfirmation = true
                 }
             )
             
@@ -105,15 +103,24 @@ struct GroupDropdownMenu: View {
         .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
         .onAppear {
             checkIfCurrentUserIsAdmin()
+            loadMemberCount()
         }
         .alert("Leave Group", isPresented: $showingLeaveConfirmation) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) { 
+                onDismiss()
+            }
             Button("Leave", role: .destructive) {
-                // TODO: Implement leave group functionality
-                print("User wants to leave group: \(group.name)")
+                onDismiss()
+                leaveGroup()
             }
         } message: {
-            Text("Are you sure you want to leave \"\(group.name)\"? You'll need the group code to rejoin.")
+            if memberCount <= 1 {
+                Text("⚠️ You are the only member in \"\(group.name)\". Leaving will permanently delete the group and all its content. This action cannot be undone.")
+                    .multilineTextAlignment(.center)
+            } else {
+                Text("Are you sure you want to leave \"\(group.name)\"? You'll need the group code to rejoin.")
+                    .multilineTextAlignment(.center)
+            }
         }
         .alert("Delete Group", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -144,6 +151,23 @@ struct GroupDropdownMenu: View {
         }
     }
     
+    private func loadMemberCount() {
+        Task {
+            do {
+                let count = try await groupService.getMemberCount(groupId: group.id)
+                await MainActor.run {
+                    memberCount = count
+                    print("🔍 Member count for group \(group.name): \(count)")
+                }
+            } catch {
+                print("❌ Error loading member count: \(error)")
+                await MainActor.run {
+                    memberCount = 0
+                }
+            }
+        }
+    }
+    
     private func deleteGroup() {
         Task {
             do {
@@ -156,6 +180,22 @@ struct GroupDropdownMenu: View {
                 
             } catch {
                 print("❌ Error deleting group: \(error)")
+                // TODO: Show error message to user
+            }
+        }
+    }
+    
+    private func leaveGroup() {
+        Task {
+            do {
+                try await groupService.leaveGroup(groupId: group.id)
+                print("✅ Successfully left group")
+                
+                // Post notification to refresh the groups list
+                NotificationCenter.default.post(name: .groupProfileUpdated, object: nil)
+                
+            } catch {
+                print("❌ Error leaving group: \(error)")
                 // TODO: Show error message to user
             }
         }
@@ -692,7 +732,7 @@ struct GroupMemberListView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(members) { member in
-                                MemberRow(member: member)
+                                MemberRow(member: member, group: group)
                             }
                         }
                         .padding(.horizontal, 20)
@@ -760,6 +800,7 @@ struct GroupMemberListView: View {
 
 struct MemberRow: View {
     let member: GroupMemberWithProfile
+    let group: UserGroup
     private let groupService = GroupService()
     
     var displayName: String {
@@ -776,7 +817,12 @@ struct MemberRow: View {
     }
     
     var roleDisplay: String {
-        return member.role.capitalized
+        // Check if this member is the group admin (created_by)
+        if member.userId == group.createdBy {
+            return "Admin"
+        } else {
+            return "Member"
+        }
     }
     
     var body: some View {
@@ -810,10 +856,10 @@ struct MemberRow: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
                         .background(
-                            member.role == "admin" ? Color.orange.opacity(0.2) : Color.gray.opacity(0.2)
+                            roleDisplay == "Admin" ? Color.orange.opacity(0.2) : Color.gray.opacity(0.2)
                         )
                         .foregroundColor(
-                            member.role == "admin" ? .orange : .secondary
+                            roleDisplay == "Admin" ? .orange : .secondary
                         )
                         .clipShape(Capsule())
                     

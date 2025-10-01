@@ -74,6 +74,8 @@ struct JoinGroupSuccessView: View {
                 
                 // Done Button - positioned closer to content
                 Button {
+                    // Refresh the home page to show the new group
+                    NotificationCenter.default.post(name: .groupProfileUpdated, object: nil)
                     onDone()
                 } label: {
                     Text("Done")

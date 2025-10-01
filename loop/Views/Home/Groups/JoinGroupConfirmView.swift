@@ -170,6 +170,8 @@ struct JoinGroupConfirmView: View {
                 
                 await MainActor.run {
                     isLoading = false
+                    // Refresh the home page to show the new group
+                    NotificationCenter.default.post(name: .groupProfileUpdated, object: nil)
                     onConfirm() // Navigate to success screen
                 }
                 

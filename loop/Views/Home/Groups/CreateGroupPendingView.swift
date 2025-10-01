@@ -111,6 +111,8 @@ struct CreateGroupPendingView: View {
                     
                     // Done Button - positioned closer to content
                     Button {
+                        // Refresh the home page to show the new group
+                        NotificationCenter.default.post(name: .groupProfileUpdated, object: nil)
                         onDone()
                     } label: {
                         Text("Done")
@@ -181,6 +183,8 @@ struct CreateGroupPendingView: View {
                 await MainActor.run {
                     isLoading = false
                     createdGroup = newGroup
+                    // Refresh the home page to show the new group
+                    NotificationCenter.default.post(name: .groupProfileUpdated, object: nil)
                     print("[CreateGroupPending] Successfully created group: \(newGroup.name) with code: \(newGroup.groupCode)")
                 }
                 

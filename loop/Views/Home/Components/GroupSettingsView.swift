@@ -8,6 +8,8 @@ struct GroupSettingsView: View {
     @State private var showingShareCode = false
     @State private var showingLeaveConfirmation = false
     
+    private let groupService = GroupService()
+    
     var body: some View {
         VStack(spacing: 0) {
             // Handle bar for sheet
@@ -105,12 +107,28 @@ struct GroupSettingsView: View {
         .alert("Leave Group", isPresented: $showingLeaveConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Leave", role: .destructive) {
-                // TODO: Implement leave group functionality
-                print("User wants to leave group: \(group.name)")
-                dismiss()
+                leaveGroup()
             }
         } message: {
             Text("Are you sure you want to leave \"\(group.name)\"? You'll need the group code to rejoin.")
+        }
+    }
+    
+    private func leaveGroup() {
+        Task {
+            do {
+                print("🚪 Leaving group: \(group.name) (ID: \(group.id))")
+                try await groupService.leaveGroup(groupId: group.id)
+                print("✅ Successfully left group")
+                
+                // Dismiss the settings view and refresh the groups list
+                dismiss()
+                NotificationCenter.default.post(name: .groupProfileUpdated, object: nil)
+                
+            } catch {
+                print("❌ Error leaving group: \(error)")
+                // TODO: Show error message to user
+            }
         }
     }
 }

@@ -637,6 +637,175 @@ extension GroupService {
         }
     }
     
+    // MARK: - Leave Group Function
+    
+    /// Leave a group with admin transfer logic
+    func leaveGroup(groupId: Int) async throws {
+        print("[GroupService] User attempting to leave group \(groupId)")
+        
+        // Verify current user
+        guard let currentUser = supabase.auth.currentUser else {
+            print("[GroupService] ❌ No current user - not authenticated!")
+            throw GroupServiceError.notAuthenticated
+        }
+        
+        // Check if user is actually a member of this group
+        let isUserMember = try await isUserMember(userId: currentUser.id, groupId: groupId)
+        guard isUserMember else {
+            print("[GroupService] ❌ User is not a member of this group")
+            throw GroupServiceError.userNotFound
+        }
+        
+        // Get the group to check if user is admin
+        let groups: [UserGroup] = try await supabase
+            .from("groups")
+            .select()
+            .eq("id", value: groupId)
+            .eq("is_active", value: true)
+            .execute()
+            .value
+        
+        guard let group = groups.first else {
+            print("[GroupService] ❌ Group not found")
+            throw GroupServiceError.groupNotFound
+        }
+        
+        let isCurrentUserAdmin = (currentUser.id == group.createdBy)
+        
+        // Check if this is the only member in the group
+        let memberCount = try await getMemberCount(groupId: groupId)
+        
+        if memberCount <= 1 {
+            // If this is the only member, delete the group entirely
+            print("[GroupService] User is the only member - deleting group instead")
+            try await deleteGroup(groupId: groupId)
+            return
+        }
+        
+        // If user is admin, we need to transfer admin rights
+        if isCurrentUserAdmin {
+            print("[GroupService] Admin leaving - transferring admin rights")
+            try await transferAdminAndLeave(groupId: groupId, leavingUserId: currentUser.id)
+        } else {
+            // Regular member leaving - just remove from group_members
+            try await removeUserFromGroup(groupId: groupId, userId: currentUser.id)
+        }
+        
+        print("[GroupService] ✅ Successfully left group \(groupId)")
+    }
+    
+    /// Transfer admin rights to next member and remove leaving user
+    private func transferAdminAndLeave(groupId: Int, leavingUserId: UUID) async throws {
+        print("[GroupService] Transferring admin rights for group \(groupId)")
+        
+        // Get all active members ordered by join date (earliest first)
+        let members: [GroupMember] = try await supabase
+            .from("group_members")
+            .select()
+            .eq("group_id", value: groupId)
+            .eq("is_active", value: true)
+            .order("joined_at", ascending: true)
+            .execute()
+            .value
+        
+        // Find the next member to become admin (first member who isn't the leaving user)
+        let nextAdmin = members.first { $0.userId != leavingUserId }
+        
+        guard let newAdmin = nextAdmin else {
+            // If no other members, delete the group instead
+            print("[GroupService] No other members found - deleting group instead")
+            try await deleteGroup(groupId: groupId)
+            return
+        }
+        
+        print("[GroupService] Transferring admin to user: \(newAdmin.userId)")
+        
+        // Update the group's created_by field to the new admin
+        try await supabase
+            .from("groups")
+            .update(["created_by": newAdmin.userId.uuidString])
+            .eq("id", value: groupId)
+            .execute()
+        
+        // Remove the leaving user from group_members
+        try await removeUserFromGroup(groupId: groupId, userId: leavingUserId)
+        
+        print("[GroupService] ✅ Admin transferred to \(newAdmin.userId) and user removed")
+    }
+    
+    /// Remove a user from group_members table
+    private func removeUserFromGroup(groupId: Int, userId: UUID) async throws {
+        print("[GroupService] Removing user \(userId) from group \(groupId)")
+        
+        try await supabase
+            .from("group_members")
+            .delete()
+            .eq("group_id", value: groupId)
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+        
+        print("[GroupService] ✅ User removed from group_members")
+    }
+    
+    // MARK: - Fix Orphaned Groups (Admin Repair)
+    
+    /// Fix groups where the admin (created_by) is no longer a member
+    func fixOrphanedGroups() async throws {
+        print("[GroupService] 🔧 FIXING ORPHANED GROUPS: Starting orphaned group repair")
+        
+        // Get all active groups
+        let groups: [UserGroup] = try await supabase
+            .from("groups")
+            .select()
+            .eq("is_active", value: true)
+            .execute()
+            .value
+        
+        print("[GroupService] 🔧 Found \(groups.count) active groups to check")
+        
+        for group in groups {
+            print("[GroupService] 🔧 Checking group: \(group.name) (ID: \(group.id))")
+            print("[GroupService] 🔧 Group admin: \(group.createdBy)")
+            
+            // Check if the admin is still a member
+            let isAdminStillMember = try await isUserMember(userId: group.createdBy, groupId: group.id)
+            
+            if !isAdminStillMember {
+                print("[GroupService] ⚠️ ORPHANED GROUP FOUND: \(group.name) - admin \(group.createdBy) is not a member!")
+                
+                // Get all active members ordered by join date
+                let members: [GroupMember] = try await supabase
+                    .from("group_members")
+                    .select()
+                    .eq("group_id", value: group.id)
+                    .eq("is_active", value: true)
+                    .order("joined_at", ascending: true)
+                    .execute()
+                    .value
+                
+                if let newAdmin = members.first {
+                    print("[GroupService] 🔧 Transferring admin to: \(newAdmin.userId)")
+                    
+                    // Update the group's created_by field to the new admin
+                    try await supabase
+                        .from("groups")
+                        .update(["created_by": newAdmin.userId.uuidString])
+                        .eq("id", value: group.id)
+                        .execute()
+                    
+                    print("[GroupService] ✅ Fixed orphaned group: \(group.name) → new admin: \(newAdmin.userId)")
+                } else {
+                    print("[GroupService] ⚠️ Group \(group.name) has no members - should be deleted")
+                    // Could delete the group here, but let's be conservative
+                }
+            } else {
+                print("[GroupService] ✅ Group \(group.name) has valid admin")
+            }
+        }
+        
+        print("[GroupService] 🔧 ORPHANED GROUP REPAIR COMPLETE")
+    }
+    
     // MARK: - Delete Group Function
     
     /// Delete a group permanently (admin only)
@@ -663,14 +832,31 @@ extension GroupService {
             throw GroupServiceError.notAuthorized
         }
         
-        // Delete the group (this should cascade delete members and media via database constraints)
+        // First, delete all members from the group
+        print("[GroupService] Deleting all members from group \(groupId)")
+        try await supabase
+            .from("group_members")
+            .delete()
+            .eq("group_id", value: groupId)
+            .execute()
+        
+        // Then delete all media from the group
+        print("[GroupService] Deleting all media from group \(groupId)")
+        try await supabase
+            .from("group_media")
+            .delete()
+            .eq("group_id", value: groupId)
+            .execute()
+        
+        // Finally, delete the group itself
+        print("[GroupService] Deleting group \(groupId)")
         try await supabase
             .from("groups")
             .delete()
             .eq("id", value: groupId)
             .execute()
         
-        print("[GroupService] ✅ Group deleted successfully")
+        print("[GroupService] ✅ Group and all associated data deleted successfully")
     }
 }
 
