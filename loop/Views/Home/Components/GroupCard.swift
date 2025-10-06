@@ -1,10 +1,12 @@
 import SwiftUI
+import Kingfisher
 
 struct GroupCard: View {
     @Binding var group: UserGroup
     let mediaItems: [GroupMedia] // Recent media items for this group
     var onGroupTap: () -> Void
     var onMenuTap: () -> Void
+    
     @State private var isPressed: Bool = false
     @State private var userNames: [UUID: String] = [:] // Cache for user names
     @State private var currentMemberCount: Int = 0
@@ -12,39 +14,18 @@ struct GroupCard: View {
     @State private var showingMemberList: Bool = false
     @State private var showingEditProfile: Bool = false
     @State private var showingShareCode: Bool = false
+    
     private let groupService = GroupService()
     
     var body: some View {
         VStack(alignment: .leading, spacing: BrandSpacing.md) {
-            // Group Header
+            // MARK: - Header
             HStack {
-                // Group Profile Photo
-                if let avatarURL = group.avatarURL, let url = try? groupService.getPublicURL(for: avatarURL) {
-                    AsyncImage(url: url) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        Image(systemName: "person.2.fill")
-                            .foregroundColor(BrandColor.orange)
-                    }
+                GroupAvatarView(avatarURL: group.avatarURL)
                     .frame(width: 32, height: 32)
-                    .clipShape(Circle())
-                } else {
-                    // Default group icon when no avatar
-                    Image(systemName: "person.2.fill")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 32, height: 32)
-                        .foregroundColor(BrandColor.orange)
-                        .padding(BrandSpacing.sm)
-                        .background(BrandColor.cream)
-                        .clipShape(Circle())
-                }
                 
-                // Group Name with Arrow
+                // Group Name
                 Button {
-                    // Temporary highlight then navigate
                     isPressed = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
                         isPressed = false
@@ -64,7 +45,7 @@ struct GroupCard: View {
                 
                 Spacer()
                 
-                // Three Dots Menu
+                // Dropdown Menu
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showingDropdownMenu.toggle()
@@ -72,15 +53,14 @@ struct GroupCard: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 20))
-                        .foregroundColor(showingDropdownMenu ? BrandColor.orange : BrandColor.systemGray)
                         .rotationEffect(.degrees(90))
+                        .foregroundColor(showingDropdownMenu ? BrandColor.orange : BrandColor.systemGray)
                 }
                 .buttonStyle(.plain)
             }
             
-            // Subtitle: show last upload info and member count
+            // MARK: - Subtitle
             HStack {
-                // Last upload info
                 if let lastMedia = mediaItems.first {
                     Text(formatLastUpload(lastMedia))
                         .font(BrandFont.footnote)
@@ -93,64 +73,46 @@ struct GroupCard: View {
                 
                 Spacer()
                 
-                // Member count
                 Text("\(currentMemberCount) members")
                     .font(BrandFont.footnote)
                     .foregroundColor(BrandColor.systemGray)
             }
             
-            // Preview Images Grid (2x2) - Always show 4 squares
+            // MARK: - Preview Grid (2x2)
             LazyVGrid(
                 columns: Array(repeating: GridItem(.flexible(), spacing: BrandSpacing.sm), count: 2),
                 spacing: BrandSpacing.sm
             ) {
                 ForEach(0..<4, id: \.self) { index in
                     if index < mediaItems.count {
-                        // Show actual media preview
-                        let media = mediaItems[index]
-                        PreviewTile(media: media)
+                        PreviewTile(media: mediaItems[index])
                     } else {
-                        // Show empty placeholder
                         PreviewTile(media: nil)
                     }
                 }
             }
         }
         .padding(BrandSpacing.md)
-        .cardStyle() // Apply card styling from our design system
+        .cardStyle()
         .overlay(alignment: .topTrailing) {
             if showingDropdownMenu {
                 GroupDropdownMenu(
                     group: $group,
-                    onDismiss: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showingDropdownMenu = false
-                        }
-                    },
-                    onShowMemberList: {
-                        print("🔍 GroupCard: Showing member list...")
-                        showingMemberList = true
-                    },
-                    onShowEditProfile: {
-                        print("🔍 GroupCard: Showing edit profile...")
-                        showingEditProfile = true
-                    },
-                    onShowShareCode: {
-                        print("🔍 GroupCard: Showing share code...")
-                        showingShareCode = true
-                    }
+                    onDismiss: { showingDropdownMenu = false },
+                    onShowMemberList: { showingMemberList = true },
+                    onShowEditProfile: { showingEditProfile = true },
+                    onShowShareCode: { showingShareCode = true }
                 )
                 .frame(width: 220)
-                .offset(x: -8, y: 40) // Position it below the three dots
+                .offset(x: -8, y: 40)
                 .transition(.asymmetric(
                     insertion: .opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing)),
                     removal: .opacity.combined(with: .scale(scale: 0.95, anchor: .topTrailing))
                 ))
-                .zIndex(1000) // Ensure it appears above other content
+                .zIndex(1000)
             }
         }
         .onTapGesture {
-            // Dismiss dropdown when tapping outside
             if showingDropdownMenu {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showingDropdownMenu = false
@@ -158,19 +120,15 @@ struct GroupCard: View {
             }
         }
         .onAppear {
+            prefetchImages()
             loadUserNames()
             loadMemberCount()
         }
+        // MARK: - Sheets
         .sheet(isPresented: $showingMemberList) {
             GroupMemberListView(group: group)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
-                .onAppear {
-                    print("🎯 Member list sheet appeared from GroupCard!")
-                }
-                .onDisappear {
-                    print("🎯 Member list sheet disappeared from GroupCard!")
-                }
         }
         .sheet(isPresented: $showingEditProfile) {
             EditProfileWorkingView(group: $group, onDismiss: {
@@ -178,63 +136,40 @@ struct GroupCard: View {
             })
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
-            .onAppear {
-                print("🎯 Edit profile sheet appeared from GroupCard!")
-            }
-            .onDisappear {
-                print("🎯 Edit profile sheet disappeared from GroupCard!")
-            }
         }
         .sheet(isPresented: $showingShareCode) {
             ShareGroupCodeView(group: group)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
-                .onAppear {
-                    print("🎯 Share code sheet appeared from GroupCard!")
-                }
-                .onDisappear {
-                    print("🎯 Share code sheet disappeared from GroupCard!")
-                }
         }
     }
     
-    // Helper function to format last upload with user name and smart date/time
+    // MARK: - Helper Methods
+    
+    private func prefetchImages() {
+        let urls = mediaItems.compactMap { try? groupService.getPublicURL(for: $0.storagePath) }
+        ImagePrefetcher(urls: urls).start()
+    }
+    
     private func formatLastUpload(_ media: GroupMedia) -> String {
         guard let createdAt = media.createdAt else { return "Last upload: Unknown" }
-        
         let userName = userNames[media.userId] ?? "Unknown User"
         let now = Date()
         let calendar = Calendar.current
         
         if calendar.isDate(createdAt, inSameDayAs: now) {
-            // Same day - show time
             let formatter = DateFormatter()
             formatter.timeStyle = .short
-            let timeString = formatter.string(from: createdAt)
-            return "Last upload by \(userName) at \(timeString)"
+            return "Last upload by \(userName) at \(formatter.string(from: createdAt))"
         } else {
-            // Different day - show date
             let formatter = DateFormatter()
             formatter.dateStyle = .short
-            formatter.timeStyle = .none
-            let dateString = formatter.string(from: createdAt)
-            return "Last upload by \(userName) on \(dateString)"
+            return "Last upload by \(userName) on \(formatter.string(from: createdAt))"
         }
     }
     
-    // Helper function to format dates (kept for compatibility)
-    private func formatDate(_ date: Date?) -> String {
-        guard let date = date else { return "Unknown" }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
-    }
-    
-    // Load user names for media items
     private func loadUserNames() {
         let userIds = Set(mediaItems.map { $0.userId })
-        
         Task {
             for userId in userIds {
                 if userNames[userId] == nil {
@@ -245,34 +180,52 @@ struct GroupCard: View {
                             userNames[userId] = fullName.isEmpty ? "Unknown User" : fullName
                         }
                     } catch {
-                        print("[GroupCard] Failed to load user name for \(userId): \(error)")
-                        await MainActor.run {
-                            userNames[userId] = "Unknown User"
-                        }
+                        await MainActor.run { userNames[userId] = "Unknown User" }
                     }
                 }
             }
         }
     }
     
-    // Load current member count for the group
     private func loadMemberCount() {
         Task {
             do {
                 let count = try await groupService.getMemberCount(groupId: group.id)
-                await MainActor.run {
-                    currentMemberCount = count
-                }
+                await MainActor.run { currentMemberCount = count }
             } catch {
-                print("[GroupCard] Failed to load member count for group \(group.name): \(error)")
-                await MainActor.run {
-                    currentMemberCount = 0
-                }
+                await MainActor.run { currentMemberCount = 0 }
             }
         }
     }
 }
 
+// MARK: - Group Avatar
+private struct GroupAvatarView: View {
+    let avatarURL: String?
+    private let groupService = GroupService()
+    
+    var body: some View {
+        if let avatarURL = avatarURL, let url = try? groupService.getPublicURL(for: avatarURL) {
+            KFImage(url)
+                .placeholder { Image(systemName: "person.2.fill").foregroundColor(BrandColor.orange) }
+                .fade(duration: 0.25)
+                .cacheOriginalImage()
+                .resizable()
+                .scaledToFill()
+                .clipShape(Circle())
+        } else {
+            Image(systemName: "person.2.fill")
+                .resizable()
+                .scaledToFit()
+                .foregroundColor(BrandColor.orange)
+                .padding(BrandSpacing.sm)
+                .background(BrandColor.cream)
+                .clipShape(Circle())
+        }
+    }
+}
+
+// MARK: - Preview Tile
 private struct PreviewTile: View {
     let media: GroupMedia?
     private let groupService = GroupService()
@@ -281,68 +234,31 @@ private struct PreviewTile: View {
         GeometryReader { proxy in
             let size = proxy.size.width
             ZStack {
-                // Background placeholder
                 Rectangle()
                     .fill(BrandColor.systemGray5)
-                    .frame(width: size, height: size)
                 
-                if let media = media {
-                    // Show actual media preview
-                    if let url = try? groupService.getPublicURL(for: media.storagePath) {
-                        AsyncImage(url: url) { image in
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            Rectangle()
-                                .fill(BrandColor.systemGray5)
-                        }
-                        .transaction { t in t.animation = nil }
-                    } else {
-                        // Show placeholder icon if URL creation fails
-                        Image(systemName: "photo")
-                            .font(.system(size: 24))
-                            .foregroundColor(BrandColor.systemGray3)
-                    }
+                if let media = media, let url = try? groupService.getPublicURL(for: media.storagePath) {
+                    KFImage(url)
+                        .placeholder { Rectangle().fill(BrandColor.systemGray5) }
+                        .fade(duration: 0.25)
+                        .cacheOriginalImage()
+                        .resizable()
+                        .scaledToFill()
+                        .clipped()
                 } else {
-                    // Show empty placeholder icon (like the mountain/sun icon you showed)
                     Image(systemName: "photo")
                         .font(.system(size: 24))
                         .foregroundColor(BrandColor.systemGray3)
                 }
             }
             .frame(width: size, height: size)
-            .clipped()
             .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
                     .stroke(BrandColor.systemGray6, lineWidth: 0.5)
             )
         }
-        .aspectRatio(1, contentMode: .fit) // Force square aspect ratio
-        .frame(maxWidth: .infinity) // Take available width
+        .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: .infinity)
     }
-}
-
-#Preview {
-    let sampleGroup = UserGroup(
-        id: 1,
-        name: "jones 2025",
-        groupCode: "ABC123",
-        avatarURL: nil,
-        createdBy: UUID(),
-        createdAt: Date(),
-        updatedAt: Date(),
-        isActive: true,
-        maxMembers: 10
-    )
-    
-    return GroupCard(
-        group: .constant(sampleGroup),
-        mediaItems: [], // Empty for preview
-        onGroupTap: { print("Group tapped: \(sampleGroup.name)") },
-        onMenuTap: { print("Menu tapped for: \(sampleGroup.name)") }
-    )
-    .padding()
-    .background(BrandColor.cream)
 }

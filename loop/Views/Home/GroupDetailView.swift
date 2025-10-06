@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
+import Kingfisher
 
 struct GroupDetailView: View {
     let group: UserGroup
@@ -221,13 +222,19 @@ private struct MediaTile: View {
 
     var body: some View {
         ZStack {
-            AsyncImage(url: try? service.getPublicURL(for: item.thumbnailPath ?? item.storagePath)) { image in
-                image
+            if let url = try? service.getPublicURL(for: item.thumbnailPath ?? item.storagePath) {
+                KFImage(url)
+                    .cacheOriginalImage()
+                    .placeholder {
+                        Color(UIColor.systemGray5)
+                            .frame(width: tileSize, height: tileSize)
+                    }
+                    .fade(duration: 0.25)
                     .resizable()
                     .scaledToFill()
                     .frame(width: tileSize, height: tileSize)
                     .clipped()
-            } placeholder: {
+            } else {
                 Color(UIColor.systemGray5)
                     .frame(width: tileSize, height: tileSize)
             }
