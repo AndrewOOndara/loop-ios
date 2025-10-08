@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 import Kingfisher
+import WaterfallGrid 
 
 struct GroupDetailView: View {
     let group: UserGroup
@@ -20,9 +21,6 @@ struct GroupDetailView: View {
 
     private let groupService = GroupService()
 
-    // Fixed tile size for consistent grid
-    private let tileSize: CGFloat = 160
-
     var body: some View {
         ZStack {
             BrandColor.white.ignoresSafeArea()
@@ -40,6 +38,13 @@ struct GroupDetailView: View {
         }
         .sheet(isPresented: .constant(uploadFlowState != .none)) {
             uploadFlowView
+        }
+        .onAppear {
+            // 👇 Prefetch all media thumbnails for smoother scrolling
+            let urls = mediaItems.compactMap {
+                try? groupService.getPublicURL(for: $0.thumbnailPath ?? $0.storagePath)
+            }
+            ImagePrefetcher(urls: urls).start()
         }
     }
 }
@@ -104,7 +109,7 @@ private extension GroupDetailView {
     }
 }
 
-// MARK: - Media Grid
+// MARK: - Media Grid (Waterfall)
 private extension GroupDetailView {
     var mediaGrid: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -113,14 +118,14 @@ private extension GroupDetailView {
             } else if mediaItems.isEmpty {
                 emptyState
             } else {
-                LazyVGrid(columns: [
-                    GridItem(.fixed(tileSize), spacing: BrandSpacing.sm),
-                    GridItem(.fixed(tileSize), spacing: BrandSpacing.sm)
-                ], spacing: BrandSpacing.sm) {
-                    ForEach(mediaItems, id: \.id) { item in
-                        MediaTile(item: item, tileSize: tileSize)
-                    }
+                WaterfallGrid(mediaItems, id: \.id) { item in
+                    MediaTile(item: item)
                 }
+                .gridStyle(
+                    columns: 2,
+                    spacing: BrandSpacing.sm,
+                    animation: .easeInOut(duration: 0.25)
+                )
                 .padding(.horizontal, BrandSpacing.lg)
                 .padding(.bottom, 100)
             }
@@ -133,10 +138,10 @@ private extension GroupDetailView {
                 HStack(spacing: BrandSpacing.sm) {
                     RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
                         .fill(BrandColor.systemGray5)
-                        .frame(width: tileSize, height: tileSize)
+                        .frame(height: 160)
                     RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
                         .fill(BrandColor.systemGray5)
-                        .frame(width: tileSize, height: tileSize)
+                        .frame(height: 180)
                 }
             }
         }
@@ -214,57 +219,52 @@ private extension GroupDetailView {
     }
 }
 
-// MARK: - Media Tile
+// MARK: - Media Tile (Dynamic Height)
 private struct MediaTile: View {
     let item: GroupMedia
-    let tileSize: CGFloat
     private let service = GroupService()
+    @State private var imageSize: CGSize = .zero
 
     var body: some View {
         ZStack {
             if let url = try? service.getPublicURL(for: item.thumbnailPath ?? item.storagePath) {
                 KFImage(url)
-                    .cacheOriginalImage()
                     .placeholder {
                         Color(UIColor.systemGray5)
-                            .frame(width: tileSize, height: tileSize)
+                            .frame(height: 200)
+                    }
+                    .onSuccess { result in
+                        imageSize = result.image.size
                     }
                     .fade(duration: 0.25)
+                    .cacheOriginalImage()
                     .resizable()
                     .scaledToFill()
-                    .frame(width: tileSize, height: tileSize)
+                    .aspectRatio(
+                        imageSize.width > 0 ? imageSize.width / imageSize.height : 1,
+                        contentMode: .fit
+                    )
                     .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                            .stroke(BrandColor.systemGray6, lineWidth: 0.5)
+                    )
             } else {
                 Color(UIColor.systemGray5)
-                    .frame(width: tileSize, height: tileSize)
+                    .frame(height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
             }
-
-            LinearGradient(
-                colors: [Color.black.opacity(0.0), Color.black.opacity(0.15)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(width: tileSize, height: tileSize)
-            .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
 
             if item.mediaType == .video {
                 Image(systemName: "play.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(8)
                     .background(Color.black.opacity(0.35))
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(Color.white.opacity(0.5), lineWidth: 0.5))
-                    .frame(width: tileSize, height: tileSize, alignment: .bottomTrailing)
             }
         }
-        .frame(width: tileSize, height: tileSize)
-        .background(BrandColor.systemGray6)
-        .clipShape(RoundedRectangle(cornerRadius: BrandUI.cornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
-                .stroke(BrandColor.systemGray6, lineWidth: 0.5)
-        )
         .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 1)
     }
 }
