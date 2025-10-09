@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct HomeView: View {
     @Binding var navigationPath: [AuthRoute]
@@ -12,6 +13,7 @@ struct HomeView: View {
     enum UploadFlowState: Equatable {
         case none
         case groupSelection(mediaType: GroupMediaType)
+        case captionInput(group: UserGroup, mediaType: GroupMediaType, selectedMedia: [PhotosPickerItem])
         case photoUpload(group: UserGroup, mediaType: GroupMediaType)
     }
     @State private var groups: [UserGroup] = []
@@ -206,8 +208,20 @@ struct HomeView: View {
                     },
                     onNext: { selectedGroup in
                         print("🎯 Group selected: \(selectedGroup.name)")
-                        uploadFlowState = .photoUpload(group: selectedGroup, mediaType: mediaType)
-                        print("🎯 Upload flow state set to photoUpload with group: \(selectedGroup.name) and mediaType: \(mediaType.rawValue)")
+                        uploadFlowState = .captionInput(group: selectedGroup, mediaType: mediaType, selectedMedia: [])
+                        print("🎯 Upload flow state set to captionInput with group: \(selectedGroup.name) and mediaType: \(mediaType.rawValue)")
+                    }
+                )
+            case .captionInput(let group, let mediaType, let selectedMedia):
+                CaptionInputView(
+                    group: group,
+                    mediaType: mediaType,
+                    selectedMedia: selectedMedia,
+                    onBack: {
+                        uploadFlowState = .groupSelection(mediaType: mediaType)
+                    },
+                    onComplete: {
+                        uploadFlowState = .none
                     }
                 )
             case .photoUpload(let group, let mediaType):

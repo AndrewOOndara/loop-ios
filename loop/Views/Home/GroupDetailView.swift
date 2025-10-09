@@ -16,6 +16,7 @@ struct GroupDetailView: View {
 
     enum UploadFlowState: Equatable {
         case none
+        case captionInput(mediaType: GroupMediaType, selectedMedia: [PhotosPickerItem])
         case mediaUpload(mediaType: GroupMediaType)
     }
 
@@ -180,22 +181,22 @@ private extension GroupDetailView {
             onPhotoTap: {
                 selectedMediaType = .image
                 showingUploadOptions = false
-                uploadFlowState = .mediaUpload(mediaType: .image)
+                uploadFlowState = .captionInput(mediaType: .image, selectedMedia: [])
             },
             onVideoTap: {
                 selectedMediaType = .video
                 showingUploadOptions = false
-                uploadFlowState = .mediaUpload(mediaType: .video)
+                uploadFlowState = .captionInput(mediaType: .video, selectedMedia: [])
             },
             onAudioTap: {
                 selectedMediaType = .audio
                 showingUploadOptions = false
-                uploadFlowState = .mediaUpload(mediaType: .audio)
+                uploadFlowState = .captionInput(mediaType: .audio, selectedMedia: [])
             },
             onMusicTap: {
                 selectedMediaType = .music
                 showingUploadOptions = false
-                uploadFlowState = .mediaUpload(mediaType: .music)
+                uploadFlowState = .captionInput(mediaType: .music, selectedMedia: [])
             }
         )
     }
@@ -205,6 +206,17 @@ private extension GroupDetailView {
         switch uploadFlowState {
         case .none:
             EmptyView()
+        case .captionInput(let mediaType, let selectedMedia):
+            CaptionInputView(
+                group: group,
+                mediaType: mediaType,
+                selectedMedia: selectedMedia,
+                onBack: { uploadFlowState = .none },
+                onComplete: {
+                    uploadFlowState = .none
+                    Task { await loadMedia() }
+                }
+            )
         case .mediaUpload(let mediaType):
             SimpleUploadView(
                 group: group,

@@ -538,6 +538,7 @@ extension GroupService {
         data: Data,
         fileExtension: String,
         mediaType: GroupMediaType,
+        caption: String? = nil,
         thumbnailData: Data? = nil
     ) async throws -> GroupMedia {
         // Build paths
@@ -574,6 +575,7 @@ extension GroupService {
             let userId: String
             let storagePath: String
             let mediaType: String
+            let caption: String?
             let thumbnailPath: String?
             
             enum CodingKeys: String, CodingKey {
@@ -581,6 +583,7 @@ extension GroupService {
                 case userId = "user_id"
                 case storagePath = "storage_path"
                 case mediaType = "media_type"
+                case caption
                 case thumbnailPath = "thumbnail_path"
             }
         }
@@ -590,6 +593,7 @@ extension GroupService {
             userId: userId.uuidString,
             storagePath: storagePath,
             mediaType: mediaType.rawValue,
+            caption: caption,
             thumbnailPath: thumbPath
         )
         

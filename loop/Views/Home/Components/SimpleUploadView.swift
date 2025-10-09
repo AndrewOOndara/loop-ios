@@ -143,6 +143,7 @@ struct SimpleUploadView: View {
                         data: data,
                         fileExtension: ext,
                         mediaType: detectedMediaType,
+                        caption: nil,
                         thumbnailData: nil
                     )
                     
