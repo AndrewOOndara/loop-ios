@@ -13,6 +13,8 @@ struct GroupDetailView: View {
     @State private var showingUploadOptions = false
     @State private var uploadFlowState: UploadFlowState = .none
     @State private var selectedMediaType: GroupMediaType = .image
+    @State private var selectedMediaItem: GroupMedia? = nil
+    @State private var showingEnlargedMedia: Bool = false
 
     enum UploadFlowState: Equatable {
         case none
@@ -21,11 +23,11 @@ struct GroupDetailView: View {
     }
 
     private let groupService = GroupService()
-
+    
     var body: some View {
         ZStack {
             BrandColor.white.ignoresSafeArea()
-
+            
             VStack(spacing: 0) {
                 headerView
                 weekInfoSection
@@ -40,6 +42,23 @@ struct GroupDetailView: View {
         .sheet(isPresented: .constant(uploadFlowState != .none)) {
             uploadFlowView
         }
+        .overlay {
+            if showingEnlargedMedia, let selectedItem = selectedMediaItem {
+                EnlargedMediaView(
+                    mediaItem: selectedItem,
+                    allMediaItems: mediaItems,
+                    onDismiss: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showingEnlargedMedia = false
+                            selectedMediaItem = nil
+                        }
+                    },
+                    onMediaChange: { newItem in
+                        selectedMediaItem = newItem
+                    }
+                )
+            }
+        }
         .onAppear {
             // 👇 Prefetch all media thumbnails for smoother scrolling
             let urls = mediaItems.compactMap {
@@ -53,74 +72,83 @@ struct GroupDetailView: View {
 // MARK: - Header
 private extension GroupDetailView {
     var headerView: some View {
-        HStack {
+                HStack {
             Button(action: { dismiss() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(BrandColor.black)
-            }
-            .buttonStyle(.plain)
-
-            Text(group.name)
-                .fontWeight(.bold)
-                .foregroundColor(BrandColor.black)
-
-            Spacer()
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(BrandColor.black)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Text(group.name)
+                        .fontWeight(.bold)
+                        .foregroundColor(BrandColor.black)
+                    
+                    Spacer()
 
             Button {
                 showingUploadOptions = true
             } label: {
-                if isUploading {
-                    ProgressView().tint(BrandColor.orange)
-                } else {
-                    Image(systemName: "plus")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(BrandColor.orange)
-                }
-            }
+                        if isUploading {
+                            ProgressView().tint(BrandColor.orange)
+                        } else {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(BrandColor.orange)
+                        }
+                    }
             .buttonStyle(.plain)
-        }
-        .padding(.horizontal, BrandSpacing.lg)
-        .padding(.top, BrandSpacing.md)
-        .padding(.bottom, BrandSpacing.lg)
+                }
+                .padding(.horizontal, BrandSpacing.lg)
+                .padding(.top, BrandSpacing.md)
+                .padding(.bottom, BrandSpacing.lg)
     }
 }
-
+                
 // MARK: - Week Info Section
 private extension GroupDetailView {
     var weekInfoSection: some View {
-        VStack(alignment: .leading, spacing: BrandSpacing.sm) {
-            HStack {
-                Text("This week's collage")
-                    .font(BrandFont.headline)
-                    .foregroundColor(BrandColor.black)
-
-                Text("(7/28 - 8/3)")
-                    .font(BrandFont.subheadline)
-                    .foregroundColor(BrandColor.orange)
-            }
-
-            Text("Group Details")
-                .font(BrandFont.footnote)
-                .foregroundColor(BrandColor.systemGray)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, BrandSpacing.lg)
-        .padding(.bottom, BrandSpacing.xl)
+                VStack(alignment: .leading, spacing: BrandSpacing.sm) {
+                    HStack {
+                        Text("This week's collage")
+                            .font(BrandFont.headline)
+                            .foregroundColor(BrandColor.black)
+                        
+                        Text("(7/28 - 8/3)")
+                            .font(BrandFont.subheadline)
+                            .foregroundColor(BrandColor.orange)
+                    }
+                    
+                    Text("Group Details")
+                        .font(BrandFont.footnote)
+                        .foregroundColor(BrandColor.systemGray)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, BrandSpacing.lg)
+                .padding(.bottom, BrandSpacing.xl)
     }
 }
-
+                
 // MARK: - Media Grid (Waterfall)
 private extension GroupDetailView {
     var mediaGrid: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            if isLoadingMedia {
+                ScrollView(.vertical, showsIndicators: false) {
+                    if isLoadingMedia {
                 loadingSkeleton
             } else if mediaItems.isEmpty {
                 emptyState
             } else {
                 WaterfallGrid(mediaItems, id: \.id) { item in
-                    MediaTile(item: item)
+                    MediaTile(
+                        item: item,
+                        isSelected: selectedMediaItem?.id == item.id,
+                        onTap: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                selectedMediaItem = item
+                                showingEnlargedMedia = true
+                            }
+                        }
+                    )
                 }
                 .gridStyle(
                     columns: 2,
@@ -134,42 +162,42 @@ private extension GroupDetailView {
     }
 
     var loadingSkeleton: some View {
-        VStack(spacing: BrandSpacing.md) {
-            ForEach(0..<4, id: \.self) { _ in
-                HStack(spacing: BrandSpacing.sm) {
-                    RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
-                        .fill(BrandColor.systemGray5)
+                        VStack(spacing: BrandSpacing.md) {
+                            ForEach(0..<4, id: \.self) { _ in
+                                HStack(spacing: BrandSpacing.sm) {
+                                    RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                                        .fill(BrandColor.systemGray5)
                         .frame(height: 160)
-                    RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
-                        .fill(BrandColor.systemGray5)
+                                    RoundedRectangle(cornerRadius: BrandUI.cornerRadius)
+                                        .fill(BrandColor.systemGray5)
                         .frame(height: 180)
-                }
-            }
-        }
-        .padding(.horizontal, BrandSpacing.lg)
-        .padding(.bottom, 100)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, BrandSpacing.lg)
+                        .padding(.bottom, 100)
     }
 
     var emptyState: some View {
-        VStack {
-            Spacer(minLength: 60)
-            VStack(spacing: BrandSpacing.md) {
-                Image(systemName: "photo.on.rectangle")
-                    .font(.system(size: 36, weight: .regular))
-                    .foregroundColor(BrandColor.lightBrown)
-                Text("No uploads yet")
-                    .font(BrandFont.headline)
-                    .foregroundColor(BrandColor.black)
-                Text("Be the first to add a memory to this group.")
-                    .font(BrandFont.body)
-                    .foregroundColor(BrandColor.lightBrown)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, BrandSpacing.lg)
-            Spacer(minLength: 120)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 100)
+                        VStack {
+                            Spacer(minLength: 60)
+                            VStack(spacing: BrandSpacing.md) {
+                                Image(systemName: "photo.on.rectangle")
+                                    .font(.system(size: 36, weight: .regular))
+                                    .foregroundColor(BrandColor.lightBrown)
+                                Text("No uploads yet")
+                                    .font(BrandFont.headline)
+                                    .foregroundColor(BrandColor.black)
+                                Text("Be the first to add a memory to this group.")
+                                    .font(BrandFont.body)
+                                    .foregroundColor(BrandColor.lightBrown)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding(.horizontal, BrandSpacing.lg)
+                            Spacer(minLength: 120)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 100)
     }
 }
 
@@ -234,9 +262,11 @@ private extension GroupDetailView {
 // MARK: - Media Tile (Dynamic Height)
 private struct MediaTile: View {
     let item: GroupMedia
+    let isSelected: Bool
+    let onTap: () -> Void
     private let service = GroupService()
     @State private var imageSize: CGSize = .zero
-
+    
     var body: some View {
         ZStack {
             if let url = try? service.getPublicURL(for: item.thumbnailPath ?? item.storagePath) {
@@ -278,6 +308,9 @@ private struct MediaTile: View {
             }
         }
         .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 1)
+        .onTapGesture {
+            onTap()
+        }
     }
 }
 
@@ -285,7 +318,7 @@ private struct MediaTile: View {
 private extension GroupDetailView {
     func loadMedia() async {
         await MainActor.run { isLoadingMedia = true }
-
+        
         do {
             let media = try await groupService.fetchGroupMedia(groupId: group.id)
             await MainActor.run {
@@ -295,6 +328,323 @@ private extension GroupDetailView {
         } catch {
             print("[GroupDetailView] Failed to load media: \(error)")
             await MainActor.run { self.isLoadingMedia = false }
+        }
+    }
+}
+
+// MARK: - Enlarged Media View
+struct EnlargedMediaView: View {
+    let mediaItem: GroupMedia
+    let allMediaItems: [GroupMedia]
+    let onDismiss: () -> Void
+    let onMediaChange: (GroupMedia) -> Void
+    
+    @State private var imageSize: CGSize = .zero
+    @State private var userProfile: Profile? = nil
+    @State private var currentMediaItem: GroupMedia
+    private let service = GroupService()
+    
+    init(mediaItem: GroupMedia, allMediaItems: [GroupMedia], onDismiss: @escaping () -> Void, onMediaChange: @escaping (GroupMedia) -> Void) {
+        self.mediaItem = mediaItem
+        self.allMediaItems = allMediaItems
+        self.onDismiss = onDismiss
+        self.onMediaChange = onMediaChange
+        self._currentMediaItem = State(initialValue: mediaItem)
+    }
+    
+    var body: some View {
+        ZStack {
+            // Background overlay
+            Color.black.opacity(0.8)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onDismiss()
+                }
+            
+            VStack(spacing: BrandSpacing.lg) {
+                // Close button
+                HStack {
+                    Spacer()
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, BrandSpacing.lg)
+                .padding(.top, BrandSpacing.lg)
+                
+                // Enlarged media with navigation arrows
+                ZStack {
+                    // Main image
+                    if let url = try? service.getPublicURL(for: currentMediaItem.thumbnailPath ?? currentMediaItem.storagePath) {
+                    KFImage(url)
+                        .placeholder {
+                            Color(UIColor.systemGray5)
+                                .frame(height: 300)
+                        }
+                        .onSuccess { result in
+                            imageSize = result.image.size
+                        }
+                        .fade(duration: 0.25)
+                        .cacheOriginalImage()
+                        .resizable()
+                        .scaledToFit()
+                        .aspectRatio(
+                            imageSize.width > 0 ? imageSize.width / imageSize.height : 1,
+                            contentMode: .fit
+                        )
+                        .padding(.horizontal, BrandSpacing.lg)
+                        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .overlay(
+                            // Video play button if needed
+                            Group {
+                                if currentMediaItem.mediaType == .video {
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 24, weight: .semibold))
+                                        .foregroundColor(.white)
+                                        .padding(12)
+                                        .background(Color.black.opacity(0.6))
+                                        .clipShape(Circle())
+                                }
+                            }
+                        )
+                    } else {
+                        Color(UIColor.systemGray5)
+                            .frame(height: 300)
+                            .padding(.horizontal, BrandSpacing.lg)
+                    }
+                }
+                
+                // Content section - centered
+                VStack(spacing: BrandSpacing.md) {
+                    // Interaction elements and upload info in one row
+                    HStack {
+                        // Left side - interaction elements
+                        HStack(spacing: BrandSpacing.lg) {
+                            // Heart icon with like count
+                            HStack(spacing: BrandSpacing.sm) {
+                                Image(systemName: "heart")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundColor(.white)
+                                Text("0")
+                                    .font(BrandFont.body)
+                                    .foregroundColor(.white)
+                            }
+                            
+                            // Comment icon with comment count
+                            HStack(spacing: BrandSpacing.sm) {
+                                Image(systemName: "message")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundColor(.white)
+                                Text("0")
+                                    .font(BrandFont.body)
+                                    .foregroundColor(.white)
+                            }
+                            
+                            // More options - directly after comment icon
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(.white)
+                        }
+                        
+                        Spacer()
+                        
+                        // Right side - upload time info (directly below image)
+                        Text("Uploaded \(formatUploadDate(mediaItem.createdAt))")
+                            .font(BrandFont.caption1)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    .padding(.horizontal, BrandSpacing.lg)
+                    
+                    // User info and caption section
+                    VStack(alignment: .leading, spacing: BrandSpacing.sm) {
+                        // User profile, name, and caption in one row
+                        HStack(spacing: BrandSpacing.sm) {
+                            // Profile photo - using actual profile photo if available
+                            Group {
+                                if let profileURL = getProfilePhotoURL() {
+                                    KFImage(profileURL)
+                                        .placeholder {
+                                            Circle()
+                                                .fill(BrandColor.lightBrown)
+                                                .overlay(
+                                                    Text(getUserInitials())
+                                                        .font(BrandFont.caption1)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundColor(.white)
+                                                )
+                                        }
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
+                                } else {
+                                    Circle()
+                                        .fill(BrandColor.lightBrown)
+                                        .frame(width: 40, height: 40)
+                                        .overlay(
+                                            Text(getUserInitials())
+                                                .font(BrandFont.caption1)
+                                                .fontWeight(.semibold)
+                                                .foregroundColor(.white)
+                                        )
+                                }
+                            }
+                            
+                            // User name
+                            Text(getUserName())
+                                .font(BrandFont.body)
+                                .foregroundColor(.white)
+                            
+                            // Caption (if exists) - to the right of name in bold
+                            if let caption = currentMediaItem.caption, !caption.isEmpty {
+                                Text(caption)
+                                    .font(BrandFont.body)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .lineLimit(1)
+                            }
+                            
+                            Spacer()
+                        }
+                    }
+                    .padding(.horizontal, BrandSpacing.lg)
+                }
+                
+                Spacer()
+            }
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        .gesture(
+            DragGesture()
+                .onEnded { gesture in
+                    let threshold: CGFloat = 50
+                    if gesture.translation.width > threshold && canNavigatePrevious() {
+                        // Swipe right - go to previous
+                        navigateToPrevious()
+                    } else if gesture.translation.width < -threshold && canNavigateNext() {
+                        // Swipe left - go to next
+                        navigateToNext()
+                    }
+                }
+        )
+        .onAppear {
+            Task {
+                await loadUserProfile()
+            }
+        }
+    }
+    
+    private func formatUploadDate(_ date: Date?) -> String {
+        guard let date = date else { return "Unknown date" }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+    
+    private func loadUserProfile() async {
+        do {
+            let profile: Profile = try await supabase
+                .from("profiles")
+                .select()
+                .eq("id", value: currentMediaItem.userId)
+                .single()
+                .execute()
+                .value
+            
+            await MainActor.run {
+                userProfile = profile
+            }
+        } catch {
+            print("Failed to load user profile: \(error)")
+        }
+    }
+    
+    // MARK: - Navigation Functions
+    
+    private func getCurrentIndex() -> Int? {
+        allMediaItems.firstIndex(where: { $0.id == currentMediaItem.id })
+    }
+    
+    private func canNavigatePrevious() -> Bool {
+        guard let currentIndex = getCurrentIndex() else { return false }
+        return currentIndex > 0
+    }
+    
+    private func canNavigateNext() -> Bool {
+        guard let currentIndex = getCurrentIndex() else { return false }
+        return currentIndex < allMediaItems.count - 1
+    }
+    
+    private func navigateToPrevious() {
+        guard let currentIndex = getCurrentIndex(), currentIndex > 0 else { return }
+        let newItem = allMediaItems[currentIndex - 1]
+        currentMediaItem = newItem
+        onMediaChange(newItem)
+        
+        // Reload user profile for new media item
+        Task {
+            await loadUserProfile()
+        }
+    }
+    
+    private func navigateToNext() {
+        guard let currentIndex = getCurrentIndex(), currentIndex < allMediaItems.count - 1 else { return }
+        let newItem = allMediaItems[currentIndex + 1]
+        currentMediaItem = newItem
+        onMediaChange(newItem)
+        
+        // Reload user profile for new media item
+        Task {
+            await loadUserProfile()
+        }
+    }
+    
+    private func getProfilePhotoURL() -> URL? {
+        guard let profile = userProfile,
+              let avatarURL = profile.avatarURL,
+              !avatarURL.isEmpty else {
+            return nil
+        }
+        
+        // If it's already a full URL, use it directly
+        if avatarURL.hasPrefix("http") {
+            return URL(string: avatarURL)
+        }
+        
+        // Otherwise, construct the URL from Supabase storage
+        return try? supabase.storage
+            .from("avatars")
+            .getPublicURL(path: avatarURL)
+    }
+    
+    private func getUserName() -> String {
+        guard let profile = userProfile else { return "Unknown User" }
+        let firstName = profile.firstName ?? ""
+        let lastName = profile.lastName ?? ""
+        let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+        return fullName.isEmpty ? (profile.username ?? "Unknown User") : fullName
+    }
+    
+    private func getUserInitials() -> String {
+        guard let profile = userProfile else { return "??" }
+        let firstName = profile.firstName ?? ""
+        let lastName = profile.lastName ?? ""
+        
+        let firstInitial = firstName.isEmpty ? "" : String(firstName.prefix(1)).uppercased()
+        let lastInitial = lastName.isEmpty ? "" : String(lastName.prefix(1)).uppercased()
+        
+        if !firstInitial.isEmpty && !lastInitial.isEmpty {
+            return firstInitial + lastInitial
+        } else if !firstInitial.isEmpty {
+            return firstInitial
+        } else if let username = profile.username, !username.isEmpty {
+            return String(username.prefix(2)).uppercased()
+        } else {
+            return "??"
         }
     }
 }
