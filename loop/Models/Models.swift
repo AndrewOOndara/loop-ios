@@ -147,4 +147,19 @@ struct GroupMedia: Codable, Identifiable, Hashable {
     }
 }
 
+// MARK: - Group Media Likes
+struct GroupMediaLike: Codable, Identifiable, Hashable {
+    let id: Int
+    let groupMediaId: Int
+    let userId: UUID
+    let createdAt: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case groupMediaId = "group_media_id"
+        case userId = "user_id"
+        case createdAt = "created_at"
+    }
+}
+
 

@@ -630,6 +630,68 @@ extension GroupService {
             .getPublicURL(path: path)
     }
     
+    // MARK: - Like/Unlike Functionality
+    
+    /// Like a media item
+    func likeMedia(mediaId: Int, userId: UUID) async throws {
+        // Check if already liked
+        let existingLike: [GroupMediaLike] = try await supabase
+            .from("group_media_likes")
+            .select()
+            .eq("group_media_id", value: mediaId)
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+            .value
+        
+        // Only like if not already liked
+        if existingLike.isEmpty {
+            let like = InsertableGroupMediaLike(
+                groupMediaId: mediaId,
+                userId: userId.uuidString
+            )
+            
+            try await supabase
+                .from("group_media_likes")
+                .insert(like)
+                .execute()
+        }
+    }
+    
+    /// Unlike a media item
+    func unlikeMedia(mediaId: Int, userId: UUID) async throws {
+        try await supabase
+            .from("group_media_likes")
+            .delete()
+            .eq("group_media_id", value: mediaId)
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+    }
+    
+    /// Check if user has liked a media item
+    func hasUserLikedMedia(mediaId: Int, userId: UUID) async throws -> Bool {
+        let likes: [GroupMediaLike] = try await supabase
+            .from("group_media_likes")
+            .select()
+            .eq("group_media_id", value: mediaId)
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+            .value
+        
+        return !likes.isEmpty
+    }
+    
+    /// Get like count for a media item
+    func getLikeCount(mediaId: Int) async throws -> Int {
+        let likes: [GroupMediaLike] = try await supabase
+            .from("group_media_likes")
+            .select()
+            .eq("group_media_id", value: mediaId)
+            .execute()
+            .value
+        
+        return likes.count
+    }
+    
     private func contentType(for fileExtension: String) -> String {
         switch fileExtension.lowercased() {
         case "jpg", "jpeg": return "image/jpeg"
@@ -638,6 +700,18 @@ extension GroupService {
         case "mp4": return "video/mp4"
         case "mov": return "video/quicktime"
         default: return "application/octet-stream"
+        }
+    }
+    
+    // MARK: - Insertable Models
+    
+    private struct InsertableGroupMediaLike: Codable {
+        let groupMediaId: Int
+        let userId: String
+        
+        enum CodingKeys: String, CodingKey {
+            case groupMediaId = "group_media_id"
+            case userId = "user_id"
         }
     }
     

@@ -15,6 +15,7 @@ struct GroupDetailView: View {
     @State private var selectedMediaType: GroupMediaType = .image
     @State private var selectedMediaItem: GroupMedia? = nil
     @State private var showingEnlargedMedia: Bool = false
+    @State private var mediaLikeStates: [Int: (isLiked: Bool, likeCount: Int)] = [:]
 
     enum UploadFlowState: Equatable {
         case none
@@ -47,6 +48,9 @@ struct GroupDetailView: View {
                 EnlargedMediaView(
                     mediaItem: selectedItem,
                     allMediaItems: mediaItems,
+                    getLikeState: { mediaId in
+                        mediaLikeStates[mediaId] ?? (isLiked: false, likeCount: 0)
+                    },
                     onDismiss: {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             showingEnlargedMedia = false
@@ -55,6 +59,9 @@ struct GroupDetailView: View {
                     },
                     onMediaChange: { newItem in
                         selectedMediaItem = newItem
+                    },
+                    onToggleLike: { mediaId in
+                        Task { await toggleLike(for: mediaId) }
                     }
                 )
             }
@@ -325,9 +332,59 @@ private extension GroupDetailView {
                 self.mediaItems = media
                 self.isLoadingMedia = false
             }
+            
+            // Load like states for all media
+            await loadLikeStates(for: media)
         } catch {
             print("[GroupDetailView] Failed to load media: \(error)")
             await MainActor.run { self.isLoadingMedia = false }
+        }
+    }
+    
+    func loadLikeStates(for media: [GroupMedia]) async {
+        guard let currentUser = AuthManager.shared.currentUser else { return }
+        
+        var newLikeStates: [Int: (isLiked: Bool, likeCount: Int)] = [:]
+        
+        for item in media {
+            do {
+                let isLiked = try await groupService.hasUserLikedMedia(mediaId: item.id, userId: currentUser.id)
+                let likeCount = try await groupService.getLikeCount(mediaId: item.id)
+                newLikeStates[item.id] = (isLiked: isLiked, likeCount: likeCount)
+            } catch {
+                print("[GroupDetailView] Failed to load like state for media \(item.id): \(error)")
+                newLikeStates[item.id] = (isLiked: false, likeCount: 0)
+            }
+        }
+        
+        await MainActor.run {
+            self.mediaLikeStates = newLikeStates
+        }
+    }
+    
+    func toggleLike(for mediaId: Int) async {
+        guard let currentUser = AuthManager.shared.currentUser else { return }
+        
+        let currentState = mediaLikeStates[mediaId] ?? (isLiked: false, likeCount: 0)
+        
+        do {
+            if currentState.isLiked {
+                // Unlike
+                try await groupService.unlikeMedia(mediaId: mediaId, userId: currentUser.id)
+                let newLikeCount = max(0, currentState.likeCount - 1)
+                await MainActor.run {
+                    mediaLikeStates[mediaId] = (isLiked: false, likeCount: newLikeCount)
+                }
+            } else {
+                // Like
+                try await groupService.likeMedia(mediaId: mediaId, userId: currentUser.id)
+                let newLikeCount = currentState.likeCount + 1
+                await MainActor.run {
+                    mediaLikeStates[mediaId] = (isLiked: true, likeCount: newLikeCount)
+                }
+            }
+        } catch {
+            print("[GroupDetailView] Failed to toggle like for media \(mediaId): \(error)")
         }
     }
 }
@@ -336,19 +393,30 @@ private extension GroupDetailView {
 struct EnlargedMediaView: View {
     let mediaItem: GroupMedia
     let allMediaItems: [GroupMedia]
+    let getLikeState: (Int) -> (isLiked: Bool, likeCount: Int)
     let onDismiss: () -> Void
     let onMediaChange: (GroupMedia) -> Void
+    let onToggleLike: (Int) -> Void
     
     @State private var imageSize: CGSize = .zero
     @State private var userProfile: Profile? = nil
     @State private var currentMediaItem: GroupMedia
+    @State private var showHeartAnimation = false
+    @State private var heartAnimationOffset: CGSize = .zero
     private let service = GroupService()
     
-    init(mediaItem: GroupMedia, allMediaItems: [GroupMedia], onDismiss: @escaping () -> Void, onMediaChange: @escaping (GroupMedia) -> Void) {
+    // Computed property that always gets the current like state from parent
+    private var currentLikeState: (isLiked: Bool, likeCount: Int) {
+        getLikeState(currentMediaItem.id)
+    }
+    
+    init(mediaItem: GroupMedia, allMediaItems: [GroupMedia], getLikeState: @escaping (Int) -> (isLiked: Bool, likeCount: Int), onDismiss: @escaping () -> Void, onMediaChange: @escaping (GroupMedia) -> Void, onToggleLike: @escaping (Int) -> Void) {
         self.mediaItem = mediaItem
         self.allMediaItems = allMediaItems
+        self.getLikeState = getLikeState
         self.onDismiss = onDismiss
         self.onMediaChange = onMediaChange
+        self.onToggleLike = onToggleLike
         self._currentMediaItem = State(initialValue: mediaItem)
     }
     
@@ -397,9 +465,14 @@ struct EnlargedMediaView: View {
                         )
                         .padding(.horizontal, BrandSpacing.lg)
                         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .onTapGesture(count: 2) {
+                            // Double tap to like with animation
+                            triggerHeartAnimation()
+                            onToggleLike(currentMediaItem.id)
+                        }
                         .overlay(
-                            // Video play button if needed
-                            Group {
+                            ZStack {
+                                // Video play button if needed
                                 if currentMediaItem.mediaType == .video {
                                     Image(systemName: "play.fill")
                                         .font(.system(size: 24, weight: .semibold))
@@ -407,6 +480,18 @@ struct EnlargedMediaView: View {
                                         .padding(12)
                                         .background(Color.black.opacity(0.6))
                                         .clipShape(Circle())
+                                }
+                                
+                                // Heart animation overlay
+                                if showHeartAnimation {
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 80, weight: .bold))
+                                        .foregroundColor(.white.opacity(0.6))
+                                        .scaleEffect(showHeartAnimation ? 1.2 : 0.1)
+                                        .opacity(showHeartAnimation ? 1.0 : 0.0)
+                                        .offset(heartAnimationOffset)
+                                        .animation(.easeOut(duration: 0.6), value: showHeartAnimation)
+                                        .animation(.easeOut(duration: 0.6), value: heartAnimationOffset)
                                 }
                             }
                         )
@@ -425,12 +510,21 @@ struct EnlargedMediaView: View {
                         HStack(spacing: BrandSpacing.lg) {
                             // Heart icon with like count
                             HStack(spacing: BrandSpacing.sm) {
-                                Image(systemName: "heart")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(.white)
-                                Text("0")
+                                Button(action: {
+                                    onToggleLike(currentMediaItem.id)
+                                }) {
+                                    Image(systemName: currentLikeState.isLiked ? "heart.fill" : "heart")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(currentLikeState.isLiked ? .red : .white)
+                                        .scaleEffect(currentLikeState.isLiked ? 1.1 : 1.0)
+                                        .animation(.easeInOut(duration: 0.2), value: currentLikeState.isLiked)
+                                }
+                                .buttonStyle(.plain)
+                                
+                                Text("\(currentLikeState.likeCount)")
                                     .font(BrandFont.body)
                                     .foregroundColor(.white)
+                                    .animation(.easeInOut(duration: 0.2), value: currentLikeState.likeCount)
                             }
                             
                             // Comment icon with comment count
@@ -557,8 +651,8 @@ struct EnlargedMediaView: View {
             
             await MainActor.run {
                 userProfile = profile
-            }
-        } catch {
+                }
+            } catch {
             print("Failed to load user profile: \(error)")
         }
     }
@@ -600,6 +694,26 @@ struct EnlargedMediaView: View {
         // Reload user profile for new media item
         Task {
             await loadUserProfile()
+        }
+    }
+    
+    private func triggerHeartAnimation() {
+        // Reset animation state
+        showHeartAnimation = false
+        heartAnimationOffset = .zero
+        
+        // Start animation
+        withAnimation(.easeOut(duration: 0.3)) {
+            showHeartAnimation = true
+            heartAnimationOffset = CGSize(width: 0, height: -20) // Move up slightly
+        }
+        
+        // Fade out and reset after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            withAnimation(.easeIn(duration: 0.3)) {
+                showHeartAnimation = false
+                heartAnimationOffset = .zero
+            }
         }
     }
     
